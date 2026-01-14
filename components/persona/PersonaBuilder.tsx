@@ -1,21 +1,18 @@
 
 import React, { useState } from 'react';
-import { Customer, PersonaData, Stakeholder, PainPoint, Relationship } from '../../types';
+import { Customer, PersonaData, Stakeholder, Relationship } from '../../types';
 import { extractPersonaData } from '../../services/geminiService';
 import { mergePersonaWithMetadata } from '../../utils/personaHelper';
 import { StakeholderProfileModal } from '../StakeholderProfileModal';
 
 // Sub-components
+import { PersonaHeader } from './PersonaHeader';
 import { ProjectContextCard } from './ProjectContextCard';
 import { CompetitiveLandscapeCard } from './CompetitiveLandscapeCard';
 import { StakeholdersCard } from './StakeholdersCard';
 import { NeedsCard } from './NeedsCard';
 import { StakeholderEditModal } from './StakeholderEditModal';
 import { AIQuickFill } from './AIQuickFill';
-import { Tabs } from '../ui/Tabs';
-
-// Icons
-import { LayoutGrid, Users, Target, Swords } from 'lucide-react';
 
 interface Props {
   customer: Customer;
@@ -23,10 +20,7 @@ interface Props {
   onResearchCompetitors?: (competitors: string[]) => void;
 }
 
-type TabType = 'OVERVIEW' | 'STAKEHOLDERS' | 'NEEDS' | 'COMPETITION';
-
 export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearchCompetitors }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('OVERVIEW');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // Modal State
@@ -35,12 +29,26 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
 
   // --- Logic ---
 
+  // Calculate Profile Completeness Score
+  const completeness = React.useMemo(() => {
+    const fields = [
+      customer.persona.industry,
+      customer.persona.companySize,
+      customer.persona.budget,
+      customer.persona.projectTimeline,
+      customer.persona.currentSolution,
+      (customer.persona.keyPainPoints || []).length > 0,
+      (customer.persona.decisionMakers || []).length > 0,
+      (customer.persona.competitors || []).length > 0
+    ];
+    const filled = fields.filter(Boolean).length;
+    return Math.round((filled / fields.length) * 100);
+  }, [customer.persona]);
+
   const handleAIAnalyze = async (rawInput: string) => {
     setIsAnalyzing(true);
     try {
       const extracted = await extractPersonaData(rawInput, customer.persona);
-      
-      // Use enhanced helper to merge both simple fields and arrays (PainPoints, Competitors, DMs)
       const finalPersona = mergePersonaWithMetadata(customer.persona, extracted, "AI Quick Fill");
       
       onUpdate({
@@ -109,97 +117,91 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
       onUpdate({ ...customer, persona: newPersona });
   };
 
-  const TAB_ITEMS = [
-      { id: 'OVERVIEW', label: '项目概览', icon: LayoutGrid },
-      { id: 'STAKEHOLDERS', label: '决策图谱', icon: Users },
-      { id: 'NEEDS', label: '需求与痛点', icon: Target },
-      { id: 'COMPETITION', label: '竞争格局', icon: Swords },
-  ];
-
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-slate-50/30">
+    <div className="h-full flex flex-col overflow-y-auto bg-slate-50/50 p-2 custom-scrollbar">
       
-      {/* 1. Navigation Tabs */}
-      <div className="px-6 py-4 flex shrink-0 bg-transparent pt-6">
-          <Tabs 
-            items={TAB_ITEMS}
-            activeId={activeTab}
-            onChange={(id) => setActiveTab(id as TabType)}
-            variant="pills"
+      {/* 1. Header Section */}
+      <div className="mb-6 shrink-0">
+          <PersonaHeader 
+              completeness={completeness} 
+              hasRisk={customer.visits.some(v => v.sentiment === 'Risk')}
           />
       </div>
 
-      {/* 2. Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar">
-          <div className="max-w-6xl mx-auto space-y-6">
+      {/* 2. Main Dashboard Grid (The "Dossier" Layout) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 pb-10">
+          
+          {/* LEFT COLUMN: The "Hard" Facts (Project, Budget, Competition) - 5 Cols */}
+          <div className="xl:col-span-5 flex flex-col gap-6">
               
-              {activeTab === 'OVERVIEW' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <ProjectContextCard 
-                          projectName={customer.projectName}
-                          projectBackground={customer.persona.projectBackground}
-                          status={customer.status}
-                          companyName={customer.name}
-                          industry={customer.persona.industry} 
-                          companySize={customer.persona.companySize}
-                          scenario={customer.persona.scenario}
-                          budget={customer.persona.budget}
-                          projectTimeline={customer.persona.projectTimeline}
-                          metadata={customer.persona._metadata}
-                          onChange={handleFieldChange}
-                          onStatusChange={handleStatusChange}
-                      />
-                  </div>
-              )}
+              {/* Project Context (The Core) */}
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                  <ProjectContextCard 
+                      projectName={customer.projectName}
+                      projectBackground={customer.persona.projectBackground}
+                      status={customer.status}
+                      companyName={customer.name}
+                      industry={customer.persona.industry} 
+                      companySize={customer.persona.companySize}
+                      scenario={customer.persona.scenario}
+                      budget={customer.persona.budget}
+                      projectTimeline={customer.persona.projectTimeline}
+                      metadata={customer.persona._metadata}
+                      onChange={handleFieldChange}
+                      onStatusChange={handleStatusChange}
+                  />
+              </div>
 
-              {activeTab === 'STAKEHOLDERS' && (
-                  <div className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <StakeholdersCard 
-                          stakeholders={customer.persona.decisionMakers}
-                          relationships={customer.persona.relationships}
-                          onAdd={() => setEditingStakeholder({})}
-                          onView={setViewingStakeholder}
-                          onDataChange={handleStakeholderDataChange}
-                      />
-                  </div>
-              )}
+              {/* Competitive Landscape */}
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
+                  <CompetitiveLandscapeCard 
+                      competitors={customer.persona.competitors}
+                      onChange={handleFieldChange}
+                      customer={customer}
+                      onAnalyze={() => {
+                          if (onResearchCompetitors && customer.persona.competitors) {
+                              onResearchCompetitors(customer.persona.competitors);
+                          }
+                      }}
+                  />
+              </div>
+          </div>
 
-              {activeTab === 'NEEDS' && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="lg:col-span-2">
-                          <NeedsCard 
-                              keyPainPoints={customer.persona.keyPainPoints}
-                              currentSolution={customer.persona.currentSolution}
-                              customerExpectations={customer.persona.customerExpectations}
-                              onChange={handleFieldChange}
-                          />
-                      </div>
-                      <div className="lg:col-span-1 h-full">
-                          <AIQuickFill 
-                              onAnalyze={handleAIAnalyze}
-                              isAnalyzing={isAnalyzing}
-                          />
-                      </div>
-                  </div>
-              )}
+          {/* RIGHT COLUMN: The "Soft" Intelligence (Input, People, Pain) - 7 Cols */}
+          <div className="xl:col-span-7 flex flex-col gap-6">
+              
+              {/* AI Intelligence Input (Top for accessibility) */}
+              <div className="h-auto animate-in fade-in slide-in-from-right-2 duration-300">
+                  <AIQuickFill 
+                      onAnalyze={handleAIAnalyze}
+                      isAnalyzing={isAnalyzing}
+                  />
+              </div>
 
-              {activeTab === 'COMPETITION' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <CompetitiveLandscapeCard 
-                          competitors={customer.persona.competitors}
-                          onChange={handleFieldChange}
-                          customer={customer}
-                          onAnalyze={() => {
-                              if (onResearchCompetitors && customer.persona.competitors) {
-                                  onResearchCompetitors(customer.persona.competitors);
-                              }
-                          }}
-                      />
-                  </div>
-              )}
+              {/* Stakeholder Map (Needs width for chart) */}
+              <div className="h-[500px] animate-in fade-in slide-in-from-right-2 duration-300 delay-75">
+                  <StakeholdersCard 
+                      stakeholders={customer.persona.decisionMakers}
+                      relationships={customer.persona.relationships}
+                      onAdd={() => setEditingStakeholder({})}
+                      onView={setViewingStakeholder}
+                      onDataChange={handleStakeholderDataChange}
+                  />
+              </div>
+
+              {/* Needs & Pain Points */}
+              <div className="h-[400px] animate-in fade-in slide-in-from-right-2 duration-300 delay-150">
+                  <NeedsCard 
+                      keyPainPoints={customer.persona.keyPainPoints}
+                      currentSolution={customer.persona.currentSolution}
+                      customerExpectations={customer.persona.customerExpectations}
+                      onChange={handleFieldChange}
+                  />
+              </div>
           </div>
       </div>
       
+      {/* Modals */}
       <StakeholderProfileModal 
          isOpen={!!viewingStakeholder}
          onClose={() => setViewingStakeholder(null)}

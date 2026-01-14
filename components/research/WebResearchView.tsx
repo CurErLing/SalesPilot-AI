@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Customer, ResearchNote, PersonaData, PainPoint } from '../../types';
 import { performWebResearch, extractPersonaData, generateIceBreaker } from '../../services/geminiService';
 import { mergePersonaWithMetadata } from '../../utils/personaHelper';
-import { Search, Globe, Check } from 'lucide-react';
+import { Search, Globe, Check, Command } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 // Sub-components
@@ -57,7 +57,7 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
   const handleSelectScenario = (prompt: string, id: string) => {
       setQuery(prompt);
       setActiveScenario(id);
-      // Removed automatic execution to allow user to review/edit prompt
+      executeSearch(prompt); // Auto execute for smoother flow
   };
 
   const handleSaveNote = () => {
@@ -65,7 +65,7 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
     
     const newNote: ResearchNote = {
         id: Date.now().toString(),
-        title: query || "AI 智能调研",
+        title: activeScenario ? `情报：${scenariosMap[activeScenario]}` : (query.length > 20 ? query.substring(0, 20) + '...' : query),
         content: result.text,
         timestamp: Date.now(),
         url: result.sources.length > 0 ? result.sources[0].uri : undefined
@@ -75,8 +75,17 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
     onUpdate({ ...customer, researchNotes: updatedNotes });
     setQuery('');
     setResult(null);
-    setActionSuccessMsg("情报已存入金库 (右侧栏查看)");
+    setActiveScenario(null);
+    setActionSuccessMsg("情报已归档至金库");
     setTimeout(() => setActionSuccessMsg(null), 3000);
+  };
+
+  // Helper for title mapping
+  const scenariosMap: Record<string, string> = {
+      'news': '近期动态侦察',
+      'competitors': '竞品攻防分析',
+      'executives': '关键人画像',
+      'painpoints': '痛点雷达扫描'
   };
 
   const handleDeleteNote = (id: string) => {
@@ -98,7 +107,7 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
           const updatedPersona = mergePersonaWithMetadata(customer.persona, extracted, sourceLabel);
 
           onUpdate({ ...customer, persona: updatedPersona });
-          setActionSuccessMsg("已提取并更新画像");
+          setActionSuccessMsg("画像已更新");
           setTimeout(() => setActionSuccessMsg(null), 3000);
       } catch (e) {
           console.error(e);
@@ -123,7 +132,7 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
               setViewingNote({ ...note, iceBreaker: text });
           }
           
-          setActionSuccessMsg("话术已保存");
+          setActionSuccessMsg("话术已生成");
           setTimeout(() => setActionSuccessMsg(null), 2000);
       } catch (e) {
           console.error(e);
@@ -133,20 +142,22 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
   };
 
   return (
-    <div className="h-full flex flex-col lg:flex-row overflow-hidden bg-slate-50/50">
+    <div className="h-full flex flex-col lg:flex-row overflow-hidden bg-slate-50/50 gap-6 p-6">
        
        {/* LEFT COLUMN: WORKSPACE (70%) */}
-       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden gap-6">
           
-          {/* Header & Scenarios */}
-          <div className="p-6 pb-2 space-y-6 overflow-y-auto custom-scrollbar">
+          {/* Header & Controls */}
+          <div className="shrink-0 space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                         <Globe className="w-6 h-6 text-indigo-500" />
-                         全网智能调研
+                    <h2 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+                         <Globe className="w-7 h-7 text-indigo-600" />
+                         情报指挥中心
                     </h2>
-                    <p className="text-sm text-slate-500">基于客户上下文的深度搜索与洞察。</p>
+                    <p className="text-sm text-slate-500 font-medium mt-1">
+                        AI 驱动的全网深度侦察，从海量信息中提炼赢单线索。
+                    </p>
                 </div>
               </div>
               
@@ -158,34 +169,37 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
               />
 
               {/* Search Bar */}
-              <div className="flex gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
-                  <div className="relative flex-1">
-                      <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                      <input 
-                          type="text" 
-                          placeholder="输入关键词或自定义调研问题..."
-                          className="w-full pl-10 pr-4 py-2.5 outline-none bg-transparent text-sm font-medium text-slate-700 placeholder:font-normal"
-                          value={query}
-                          onChange={(e) => {
-                              setQuery(e.target.value);
-                              if (activeScenario) setActiveScenario(null); // Clear selection on manual edit
-                          }}
-                          onKeyDown={(e) => e.key === 'Enter' && executeSearch(query)}
-                      />
+              <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
+                  <div className="relative flex gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+                      <div className="relative flex-1">
+                          <Command className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                          <input 
+                              type="text" 
+                              placeholder="输入自定义侦察指令（例如：查询该公司的 IT 招标历史...）"
+                              className="w-full pl-12 pr-4 py-3 outline-none bg-transparent text-sm font-medium text-slate-700 placeholder:font-normal"
+                              value={query}
+                              onChange={(e) => {
+                                  setQuery(e.target.value);
+                                  if (activeScenario) setActiveScenario(null); 
+                              }}
+                              onKeyDown={(e) => e.key === 'Enter' && executeSearch(query)}
+                          />
+                      </div>
+                      <Button 
+                          onClick={() => executeSearch(query)}
+                          disabled={loading || !query.trim()}
+                          className="rounded-xl px-8 shadow-md"
+                          isLoading={loading}
+                      >
+                          {loading ? '侦察中...' : '执行'}
+                      </Button>
                   </div>
-                  <Button 
-                      onClick={() => executeSearch(query)}
-                      disabled={loading || !query.trim()}
-                      className="rounded-lg px-6"
-                      isLoading={loading}
-                  >
-                      搜索
-                  </Button>
               </div>
           </div>
 
           {/* Results Area (Flex Grow) */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar">
+          <div className="flex-1 min-h-0">
              <WebResearchResult 
                  loading={loading}
                  result={result}
@@ -208,8 +222,10 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
 
        {/* Toast Notification */}
        {actionSuccessMsg && (
-           <div className="fixed bottom-6 right-6 lg:right-[400px] bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg animate-in slide-in-from-bottom-4 flex items-center gap-2 z-50 text-sm font-medium pointer-events-none">
-               <Check className="w-4 h-4" />
+           <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl animate-in slide-in-from-bottom-4 flex items-center gap-3 z-50 text-sm font-medium pointer-events-none">
+               <div className="bg-emerald-500 rounded-full p-0.5">
+                   <Check className="w-3 h-3 text-white" />
+               </div>
                {actionSuccessMsg}
            </div>
        )}
