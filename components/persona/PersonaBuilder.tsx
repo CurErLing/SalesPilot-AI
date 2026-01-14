@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Customer, PersonaData, Stakeholder } from '../../types';
 import { extractPersonaData } from '../../services/geminiService';
 import { StakeholderProfileModal } from '../StakeholderProfileModal';
@@ -11,7 +11,6 @@ import { StakeholdersCard } from './StakeholdersCard';
 import { NeedsCard } from './NeedsCard';
 import { StakeholderEditModal } from './StakeholderEditModal';
 import { AIQuickFill } from './AIQuickFill';
-import { PersonaHeader } from './PersonaHeader';
 
 // Icons
 import { LayoutGrid, Users, Target, Swords } from 'lucide-react';
@@ -33,26 +32,6 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
   const [viewingStakeholder, setViewingStakeholder] = useState<Stakeholder | null>(null);
 
   // --- Logic ---
-
-  // Calculate Profile Completeness Score (moved from previous version for header)
-  const completeness = useMemo(() => {
-    const fields = [
-      customer.persona.industry,
-      customer.persona.companySize,
-      customer.persona.budget,
-      customer.persona.projectTimeline,
-      customer.persona.currentSolution,
-      (customer.persona.keyPainPoints || []).length > 0,
-      (customer.persona.decisionMakers || []).length > 0,
-      (customer.persona.competitors || []).length > 0
-    ];
-    const filled = fields.filter(Boolean).length;
-    return Math.round((filled / fields.length) * 100);
-  }, [customer.persona]);
-
-  const hasRisk = useMemo(() => {
-      return customer.visits?.some(v => v.sentiment === 'Risk');
-  }, [customer.visits]);
 
   const handleAIAnalyze = async (rawInput: string) => {
     setIsAnalyzing(true);
@@ -159,13 +138,8 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
   return (
     <div className="h-full flex flex-col overflow-hidden bg-slate-50/30">
       
-      {/* 1. Header with Completeness & Risk Warning */}
-      <div className="px-6 pt-6 shrink-0">
-          <PersonaHeader completeness={completeness} hasRisk={hasRisk} />
-      </div>
-
-      {/* 2. Navigation Tabs (Pill Style Container) */}
-      <div className="px-6 py-4 flex shrink-0 bg-transparent">
+      {/* 1. Navigation Tabs (Pill Style Container) */}
+      <div className="px-6 py-4 flex shrink-0 bg-transparent pt-6">
           <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/60">
             {renderTabButton('OVERVIEW', '项目概览', LayoutGrid)}
             {renderTabButton('STAKEHOLDERS', '决策图谱', Users)}
@@ -174,7 +148,7 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
           </div>
       </div>
 
-      {/* 3. Scrollable Content Area */}
+      {/* 2. Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar">
           <div className="max-w-6xl mx-auto space-y-6">
               
