@@ -1,8 +1,6 @@
 
 import React from 'react';
-import { Calendar, Phone, Mail, Users } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { Phone, Mail, Users, ArrowRight } from 'lucide-react';
 import { VisitRecord, ViewState } from '../../types';
 
 interface Props {
@@ -12,36 +10,42 @@ interface Props {
 
 export const ActivityTimelineCard: React.FC<Props> = ({ visits, onChangeView }) => {
     return (
-        <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-indigo-500" />
-                    近期动态
-                </h3>
-                <Button variant="ghost" size="sm" onClick={() => onChangeView(ViewState.VISIT_RECORDS)}>查看全部</Button>
-            </div>
+        <div className="space-y-5 relative">
+            {/* Timeline Line */}
+            <div className="absolute left-3.5 top-2 bottom-2 w-px bg-indigo-100/50"></div>
 
-            <div className="space-y-6 relative">
-                {/* Timeline Line - Centered relative to the w-8 (32px) circles. Center is 16px (left-4). */}
-                <div className="absolute left-4 top-2 bottom-2 w-px bg-slate-100"></div>
-
-                {visits.length > 0 ? visits.map((visit, idx) => (
-                    <div key={idx} className="relative flex gap-4">
-                        <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shrink-0 z-10 text-slate-400">
-                            {visit.type === 'Call' ? <Phone className="w-3.5 h-3.5"/> : visit.type === 'Email' ? <Mail className="w-3.5 h-3.5"/> : <Users className="w-3.5 h-3.5"/>}
-                        </div>
-                        <div className="flex-1 bg-slate-50/50 rounded-xl p-4 border border-slate-100 hover:border-indigo-200 transition-colors cursor-pointer" onClick={() => onChangeView(ViewState.VISIT_RECORDS)}>
-                            <div className="flex justify-between items-start mb-1">
-                                <h4 className="font-bold text-slate-700 text-sm">{visit.title}</h4>
-                                <span className="text-xs text-slate-400">{visit.date}</span>
-                            </div>
-                            <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{visit.content}</p>
-                        </div>
+            {visits.length > 0 ? visits.map((visit, idx) => (
+                <div key={idx} className="relative flex gap-3 group">
+                    {/* Icon Node */}
+                    <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 z-10 shadow-sm transition-colors ${visit.sentiment === 'Risk' ? 'bg-red-50 border-red-100 text-red-500' : 'bg-white border-indigo-50 text-indigo-400 group-hover:border-indigo-200 group-hover:text-indigo-600'}`}>
+                        {visit.type === 'Call' ? <Phone className="w-3 h-3"/> : visit.type === 'Email' ? <Mail className="w-3 h-3"/> : <Users className="w-3 h-3"/>}
                     </div>
-                )) : (
-                    <div className="text-center py-6 text-slate-400 text-sm">暂无互动记录</div>
-                )}
-            </div>
-        </Card>
+                    
+                    {/* Content */}
+                    <div 
+                        className="flex-1 bg-slate-50 rounded-xl p-3 border border-slate-100 hover:border-indigo-200 hover:bg-white hover:shadow-sm transition-all cursor-pointer" 
+                        onClick={() => onChangeView(ViewState.VISIT_RECORDS)}
+                    >
+                        <div className="flex justify-between items-start mb-1.5">
+                            <h4 className="font-bold text-slate-700 text-xs line-clamp-1">{visit.title || '未命名记录'}</h4>
+                            <span className="text-[10px] text-slate-400 shrink-0 font-mono">{visit.date.slice(5)}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                            {visit.content || "暂无详细内容"}
+                        </p>
+                        {visit.nextSteps && (
+                            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1 text-[10px] text-indigo-600 font-medium">
+                                <ArrowRight className="w-2.5 h-2.5" />
+                                <span className="truncate">{visit.nextSteps}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )) : (
+                <div className="text-center py-10 text-slate-400 text-xs">
+                    暂无互动记录，点击上方快速行动添加。
+                </div>
+            )}
+        </div>
     );
 };

@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Pause, RotateCcw, RotateCw, Edit2, Copy, Trash2, User, Clock, Check, Users } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw, Edit2, Clock, Users } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { SpeakerManagerModal } from './SpeakerManagerModal';
 import { SpeakerEditModal } from './SpeakerEditModal';
 import { Stakeholder } from '../../types';
+import { parseTranscript, stringifyTranscript, ParsedSegment } from '../../utils/transcriptHelper';
 
 interface Props {
     audioUrl?: string;
@@ -14,16 +15,14 @@ interface Props {
     stakeholders?: Stakeholder[];
 }
 
-interface Segment {
+// Internal state needs ID for rendering list
+interface EditorSegment extends ParsedSegment {
     id: string;
-    time: string;
-    speaker: string;
-    text: string;
 }
 
 export const TranscriptEditor: React.FC<Props> = ({ audioUrl, transcript, onChange, onAnalyze, stakeholders }) => {
     // --- State ---
-    const [segments, setSegments] = useState<Segment[]>([]);
+    const [segments, setSegments] = useState<EditorSegment[]>([]);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -38,54 +37,13 @@ export const TranscriptEditor: React.FC<Props> = ({ audioUrl, transcript, onChan
 
     // --- Parsing Logic ---
     useEffect(() => {
-        if (!transcript) {
-            setSegments([]);
-            return;
-        }
-
-        // Try parsing: [MM:SS] Speaker: Text
-        const regex = /\[(\d{2}:\d{2})\]\s*(.*?):\s*(.*)/;
-        const lines = transcript.split('\n');
-        const parsed: Segment[] = [];
-        
-        let currentSegment: Partial<Segment> | null = null;
-
-        lines.forEach((line, idx) => {
-            const match = line.match(regex);
-            if (match) {
-                if (currentSegment) parsed.push(currentSegment as Segment);
-                currentSegment = {
-                    id: `seg-${idx}`,
-                    time: match[1],
-                    speaker: match[2],
-                    text: match[3]
-                };
-            } else if (currentSegment) {
-                // Append to previous if it's a continuation
-                currentSegment.text += ` ${line}`;
-            } else if (line.trim()) {
-                // Fallback for lines without timestamp
-                parsed.push({
-                    id: `seg-${idx}`,
-                    time: '00:00',
-                    speaker: 'Unknown',
-                    text: line
-                });
-            }
-        });
-        if (currentSegment) parsed.push(currentSegment as Segment);
-
-        // If regex failed completely (e.g. raw text), just wrap it
-        if (parsed.length === 0 && transcript.trim()) {
-            parsed.push({
-                id: 'seg-0',
-                time: '00:00',
-                speaker: 'System',
-                text: transcript
-            });
-        }
-
-        setSegments(parsed);
+        const parsed = parseTranscript(transcript);
+        // Add IDs for React keys
+        const editorSegments = parsed.map((s, i) => ({
+            ...s,
+            id: `seg-${i}-${Date.now()}`
+        }));
+        setSegments(editorSegments);
     }, [transcript]);
 
     // --- Audio Control ---
@@ -136,9 +94,11 @@ export const TranscriptEditor: React.FC<Props> = ({ audioUrl, transcript, onChan
     };
 
     // --- Editing Logic ---
-    const notifyChange = (newSegments: Segment[]) => {
+    const notifyChange = (newSegments: EditorSegment[]) => {
+        // Optimistic update
         setSegments(newSegments);
-        const newTranscript = newSegments.map(s => `[${s.time}] ${s.speaker}: ${s.text}`).join('\n');
+        // Serialize without IDs
+        const newTranscript = stringifyTranscript(newSegments);
         onChange(newTranscript);
     };
 

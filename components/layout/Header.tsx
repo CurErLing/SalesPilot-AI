@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
 import { Customer } from '../../types';
-import { Badge } from '../ui/Badge';
-import { ChevronRight, Home, TrendingUp, Wallet, Clock, Check, ChevronDown } from 'lucide-react';
+import { ChevronRight, TrendingUp, Wallet, Clock, Check, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { getScoreColor } from '../../utils/formatters';
 
 interface HeaderProps {
@@ -21,8 +20,6 @@ export const Header: React.FC<HeaderProps> = ({ customer, onUpdate, onBack }) =>
       setIsStageMenuOpen(false);
   };
 
-  const currentStageIndex = STAGES.indexOf(customer.status);
-
   // Helper to explain why we are in Negotiation
   const getStageTooltip = (stage: string) => {
     if (stage === '谈判') return '准入标准：方案已确认，进入合同法务审核或价格谈判阶段。';
@@ -31,63 +28,59 @@ export const Header: React.FC<HeaderProps> = ({ customer, onUpdate, onBack }) =>
   };
 
   return (
-    <div className="bg-white border-b border-slate-200 flex flex-col shadow-sm z-10 sticky top-0 h-16 justify-center">
+    <div className="bg-white border-b border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-10 sticky top-0 h-16 flex flex-col justify-center">
       <div className="px-6 flex items-center justify-between">
           
-          {/* Left: Breadcrumb & Title */}
-          <div className="flex items-center gap-4 flex-1 min-w-0">
+          {/* Left: Standardized Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
               <button 
-                className="hidden md:flex items-center gap-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-all text-xs font-bold group"
                 onClick={onBack}
-                title="返回商机管道"
+                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-700 transition-colors font-medium"
               >
-                  <Home className="w-3.5 h-3.5" />
-                  <span>商机管道</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-400" />
+                  <LayoutDashboard className="w-4 h-4" />
+                  商机管道
               </button>
               
-              <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
-
-              <div className="flex flex-col min-w-0">
-                  <h1 className="font-bold text-slate-800 text-lg truncate leading-tight flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-slate-300" />
+              
+              <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-800 truncate max-w-[200px]" title={customer.projectName}>
                       {customer.projectName || '未命名项目'}
-                  </h1>
-                  <span className="text-xs text-slate-500 font-medium truncate flex items-center gap-1">
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-500 border border-slate-200">
                       {customer.name}
                   </span>
               </div>
           </div>
 
           {/* Right: Key Deal Metrics & Pipeline Stepper */}
-          <div className="flex items-center gap-4 md:gap-6 shrink-0">
+          <div className="flex items-center gap-6 shrink-0">
              
-             {/* 1. Metrics (Budget & Timeline) */}
+             {/* 1. High-Level Metrics (Clean Layout) */}
              <div className="hidden xl:flex items-center gap-6 border-r border-slate-100 pr-6">
                 <div className="flex flex-col items-end">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Wallet className="w-3 h-3" /> 预算金额
+                        <Wallet className="w-3 h-3" /> 预算
                     </span>
-                    <span className="font-bold text-slate-700 font-mono text-sm">
+                    <span className="font-bold text-slate-700 font-mono text-sm leading-none mt-0.5">
                         {customer.persona.budget || '¥ --'}
                     </span>
                 </div>
                 <div className="flex flex-col items-end">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> 预计结单
+                        <Clock className="w-3 h-3" /> 结单
                     </span>
-                    <span className="font-bold text-slate-700 text-sm">
-                        {customer.persona.projectTimeline || '未设定'}
+                    <span className="font-bold text-slate-700 text-sm leading-none mt-0.5">
+                        {customer.persona.projectTimeline || '--'}
                     </span>
                 </div>
                 <div className="flex flex-col items-end">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" /> 赢面分
+                        <TrendingUp className="w-3 h-3" /> 赢面
                     </span>
-                    <div className="flex items-center gap-1.5">
-                        <span className={`font-black text-lg leading-none ${getScoreColor(customer.assessmentScore)}`}>
-                            {customer.assessmentScore || '-'}
-                        </span>
-                    </div>
+                    <span className={`font-black text-sm leading-none mt-0.5 ${getScoreColor(customer.assessmentScore)}`}>
+                        {customer.assessmentScore || '-'}分
+                    </span>
                 </div>
              </div>
 
@@ -110,10 +103,10 @@ export const Header: React.FC<HeaderProps> = ({ customer, onUpdate, onBack }) =>
                                             ${idx === 0 ? 'rounded-l-md pl-3' : 'pl-4'} 
                                             ${idx === STAGES.length - 1 ? 'rounded-r-md pr-3' : 'pr-6'}
                                             ${isActive 
-                                                ? 'bg-indigo-600 text-white shadow-md z-20 scale-105' 
+                                                ? 'bg-slate-800 text-white shadow-md z-20 scale-105' 
                                                 : isPast 
-                                                    ? 'bg-indigo-50 text-indigo-600' 
-                                                    : 'bg-slate-100 text-slate-400'
+                                                    ? 'bg-slate-100 text-slate-600' 
+                                                    : 'bg-slate-50 text-slate-300'
                                             }
                                         `}
                                         style={{

@@ -4,7 +4,7 @@ import { ViewState } from '../../types';
 import { 
   LayoutDashboard, Menu, 
   UserCircle, Calendar, Globe, BarChart3, Compass,
-  Target, Zap, Trophy, LayoutGrid
+  LayoutGrid, ArrowLeft, Building2
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,27 +16,29 @@ interface SidebarProps {
   customerName: string;
 }
 
-// Grouped Menu Structure reflecting Sales Workflow
-// Removed English subtitles
+// Optimized Workflow Grouping
 const menuGroups = [
   {
-    title: '洞察与情报',
-    icon: Target, 
+    title: '全景概览',
+    items: [
+      { id: ViewState.PROJECT_COCKPIT, label: '项目驾驶舱', icon: LayoutGrid },
+    ]
+  },
+  {
+    title: '情报构建',
     items: [
       { id: ViewState.PERSONA, label: '全景画像', icon: UserCircle },
       { id: ViewState.WEB_RESEARCH, label: '网络调研', icon: Globe },
     ]
   },
   {
-    title: '互动与跟进',
-    icon: Zap,
+    title: '行动执行',
     items: [
       { id: ViewState.VISIT_RECORDS, label: '拜访记录', icon: Calendar },
     ]
   },
   {
-    title: '策略与赢单',
-    icon: Trophy,
+    title: '赢单大脑',
     items: [
       { id: ViewState.ASSESSMENT, label: '价值评估', icon: BarChart3 },
       { id: ViewState.STRATEGY, label: '致胜策略', icon: Compass },
@@ -54,115 +56,106 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <aside 
-      className={`${isOpen ? 'w-64' : 'w-20'} bg-white text-slate-600 transition-all duration-500 ease-in-out flex flex-col border-r border-slate-200/60 shrink-0 z-20 shadow-xl shadow-slate-200/50 relative overflow-hidden`}
+      className={`${isOpen ? 'w-64' : 'w-20'} bg-slate-900 text-slate-300 transition-all duration-300 ease-in-out flex flex-col shrink-0 z-20 shadow-xl relative`}
     >
-      {/* Decorative Top Gradient Blur for a younger feel */}
-      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-50/50 to-transparent pointer-events-none"></div>
-
-      {/* Brand Header (Clickable to go Home) */}
-      <div className="p-5 flex items-center justify-between h-20 shrink-0 relative z-10">
-        <button 
+      {/* 1. Global Navigation (Back to Pipeline) */}
+      <div className="h-16 flex items-center px-4 border-b border-slate-800 shrink-0 bg-slate-950/50">
+          <button 
             onClick={onBackToPipeline}
-            className={`flex items-center gap-3 transition-all hover:opacity-80 focus:outline-none group ${!isOpen ? 'w-full justify-center' : ''}`}
-            title="返回商机管道 (Dashboard)"
-        >
-            <div className="w-9 h-9 rounded-xl bg-gradient-ai flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0 group-hover:scale-105 transition-transform duration-300">
-                <LayoutDashboard className="w-5 h-5" />
-            </div>
-            {isOpen && (
-                <div className="flex flex-col items-start animate-in fade-in duration-300">
-                    <span className="font-extrabold text-slate-800 text-lg tracking-tight leading-none font-sans">SalesPilot</span>
-                    <span className="text-[10px] text-slate-400 font-medium mt-0.5 group-hover:text-indigo-500 transition-colors">点击返回管道</span>
-                </div>
-            )}
-        </button>
+            className={`flex items-center gap-3 w-full hover:text-white transition-colors group ${!isOpen ? 'justify-center' : ''}`}
+            title="返回商机管道"
+          >
+              <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center group-hover:bg-indigo-600 transition-colors shrink-0">
+                  {isOpen ? <ArrowLeft className="w-4 h-4" /> : <LayoutDashboard className="w-4 h-4" />}
+              </div>
+              {isOpen && (
+                  <span className="font-bold text-sm tracking-wide">返回管道</span>
+              )}
+          </button>
       </div>
 
-      {/* Navigation Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar py-2 space-y-8 relative z-10">
+      {/* 2. Customer Context Card (The Anchor) */}
+      <div className="p-4 border-b border-slate-800/50 bg-slate-900 relative overflow-hidden">
+          {/* Decorative background glow */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
           
-          {/* Customer Context (Mini Card) */}
-          {isOpen && (
-            <div className="px-4 animate-in fade-in slide-in-from-left-4 duration-500">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1 pl-1">
-                    当前作战单元
-                </div>
-                <button 
-                    onClick={() => onViewChange(ViewState.PROJECT_COCKPIT)}
-                    className={`w-full text-left font-bold leading-snug truncate text-sm pl-4 border-l-2 py-3 transition-all rounded-r-xl group shadow-sm
-                        ${currentView === ViewState.PROJECT_COCKPIT 
-                            ? 'border-indigo-500 text-indigo-700 bg-indigo-50/60' 
-                            : 'border-slate-200 text-slate-600 bg-white hover:border-indigo-300 hover:text-indigo-600 hover:bg-slate-50'
-                        }
-                    `}
-                >
-                    <div className="flex items-center justify-between pr-3">
-                        <span className="truncate">{customerName}</span>
-                        <LayoutGrid className={`w-3.5 h-3.5 transition-all ${currentView === ViewState.PROJECT_COCKPIT ? 'text-indigo-500 opacity-100' : 'text-slate-300 opacity-0 group-hover:opacity-100'}`} />
-                    </div>
-                    <span className={`text-[10px] font-normal block mt-0.5 ${currentView === ViewState.PROJECT_COCKPIT ? 'text-indigo-400' : 'text-slate-400'}`}>点击进入驾驶舱</span>
-                </button>
-            </div>
-          )}
-          
-          {/* Grouped Menu Items */}
-          <div className="space-y-6 px-3">
-              {menuGroups.map((group, groupIdx) => (
-                  <div key={groupIdx}>
-                      {isOpen && (
-                          <div className="px-3 mb-2 flex items-center gap-2">
-                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">{group.title}</span>
-                          </div>
-                      )}
-                      {!isOpen && (
-                           <div className="w-4 h-0.5 bg-slate-100 my-4 mx-auto rounded-full"></div>
-                      )}
-                      
-                      <div className="space-y-1">
-                          {group.items.map(item => (
-                              <button 
-                                  key={item.id}
-                                  onClick={() => onViewChange(item.id)}
-                                  className={`w-full text-left flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 relative overflow-hidden group ${
-                                      currentView === item.id 
-                                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-200 font-semibold' 
-                                      : 'hover:bg-slate-50 text-slate-500 hover:text-slate-900'
-                                  } ${!isOpen ? 'justify-center' : ''}`}
-                                  title={item.label}
-                              >
-                                  <item.icon className={`w-4 h-4 flex-shrink-0 relative z-10 transition-colors ${currentView === item.id ? 'text-white' : 'text-slate-400 group-hover:text-indigo-500'}`} />
-                                  {isOpen && <span className="text-sm relative z-10">{item.label}</span>}
-                              </button>
-                          ))}
+          <div className={`flex items-center gap-3 ${!isOpen ? 'justify-center' : ''}`}>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg shadow-indigo-900/50">
+                  {customerName.charAt(0)}
+              </div>
+              {isOpen && (
+                  <div className="min-w-0 flex-1 animate-in fade-in slide-in-from-left-2">
+                      <div className="font-bold text-white truncate text-sm leading-tight">{customerName}</div>
+                      <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-1 truncate">
+                          <Building2 className="w-3 h-3" /> 当前客户
                       </div>
                   </div>
-              ))}
+              )}
           </div>
       </div>
 
-      {/* User Footer */}
-      <div className="p-4 border-t border-slate-100 bg-white relative z-10">
+      {/* 3. Scrollable Menu Area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar py-4 space-y-6">
+          {menuGroups.map((group, groupIdx) => (
+              <div key={groupIdx} className="px-3">
+                  {isOpen && (
+                      <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          {group.title}
+                      </div>
+                  )}
+                  {/* Divider for collapsed mode */}
+                  {!isOpen && groupIdx > 0 && (
+                       <div className="w-8 h-px bg-slate-800 mx-auto my-3"></div>
+                  )}
+                  
+                  <div className="space-y-1">
+                      {group.items.map(item => {
+                          const isActive = currentView === item.id;
+                          return (
+                              <button 
+                                  key={item.id}
+                                  onClick={() => onViewChange(item.id)}
+                                  className={`
+                                      w-full flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 group relative
+                                      ${isActive 
+                                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/50' 
+                                          : 'hover:bg-slate-800 hover:text-white text-slate-400'
+                                      } 
+                                      ${!isOpen ? 'justify-center' : ''}
+                                  `}
+                                  title={item.label}
+                              >
+                                  <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                                  {isOpen && <span className="text-sm font-medium">{item.label}</span>}
+                                  
+                                  {/* Active Indicator Line (Left) */}
+                                  {isActive && !isOpen && (
+                                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-400 rounded-r-full"></div>
+                                  )}
+                              </button>
+                          );
+                      })}
+                  </div>
+              </div>
+          ))}
+      </div>
+
+      {/* 4. User Footer */}
+      <div className="p-4 border-t border-slate-800 bg-slate-950">
         <div className={`flex items-center gap-3 ${!isOpen ? 'justify-center' : ''}`}>
-             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-400 flex items-center justify-center text-white font-bold shrink-0 shadow-md ring-2 ring-white">
+             <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs text-slate-400 shrink-0">
                 JD
              </div>
              {isOpen && (
                   <div className="flex-1 min-w-0 animate-in fade-in">
-                      <div className="text-sm font-bold text-slate-800 truncate">John Doe</div>
-                      <div className="text-xs text-slate-400 truncate font-medium">高级客户经理</div>
+                      <div className="text-xs font-bold text-slate-300">John Doe</div>
+                      <div className="text-[10px] text-slate-600">在线</div>
                   </div>
              )}
-             {isOpen && (
-                 <button onClick={toggle} className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 hover:bg-indigo-50 rounded-lg">
-                     <Menu className="w-4 h-4" />
-                 </button>
-             )}
+             <button onClick={toggle} className="text-slate-500 hover:text-white transition-colors">
+                 <Menu className="w-4 h-4" />
+             </button>
         </div>
-        {!isOpen && (
-            <button onClick={toggle} className="w-full flex justify-center mt-4 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-xl transition-colors">
-                <Menu className="w-4 h-4" />
-            </button>
-        )}
       </div>
     </aside>
   );

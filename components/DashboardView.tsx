@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Customer } from '../types';
 import { Button } from './ui/Button';
 import { Plus, Search } from 'lucide-react';
+import { getStatusColor } from '../utils/formatters';
 
 // Sub Components
 import { ActionCenter } from './dashboard/ActionCenter';
@@ -122,14 +123,6 @@ const DashboardView: React.FC<Props> = ({ customers, onSelectCustomer, onAddCust
         return new Date(b.lastContact).getTime() - new Date(a.lastContact).getTime();
     });
   }, [customers, searchQuery, statusFilter, sortBy]);
-
-  const getStatusColor = (status: string) => {
-    if (status === '合格') return 'bg-purple-100 text-purple-700';
-    if (status === '线索') return 'bg-blue-100 text-blue-700';
-    if (status === '谈判') return 'bg-amber-100 text-amber-700';
-    if (status === '赢单') return 'bg-emerald-100 text-emerald-700';
-    return 'bg-slate-100 text-slate-700';
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 overflow-y-auto">

@@ -4,6 +4,7 @@ import { Customer, Stakeholder } from '../../types';
 import { Swords, UserPlus } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
+import { Avatar } from '../ui/Avatar';
 
 interface Props {
   customer: Customer;
@@ -31,9 +32,7 @@ export const RolePlaySelection: React.FC<Props> = ({ customer, onSelect }) => {
                   className="p-4 hoverable cursor-pointer border-slate-200 hover:border-indigo-500 group text-left"
                 >
                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 border border-white shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                         {dm.name.charAt(0)}
-                      </div>
+                      <Avatar name={dm.name} size="md" className="group-hover:bg-indigo-600 group-hover:text-white transition-colors bg-slate-100 text-slate-600 border-white shadow-sm" />
                       <div>
                          <div className="font-bold text-slate-700 group-hover:text-indigo-700">{dm.name}</div>
                          <div className="text-xs text-slate-400">{dm.title} • {dm.role}</div>

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { TrendingUp } from 'lucide-react';
+import { getScoreColor } from '../../utils/formatters';
 
 interface ScoreGaugeProps {
   score: number;
@@ -19,14 +20,8 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (circumference * score) / 100;
   
-  // Color Logic
-  const getColor = (s: number) => {
-      if (s >= 70) return 'text-emerald-500';
-      if (s >= 50) return 'text-amber-500';
-      return 'text-red-500';
-  };
-
-  const colorClass = getColor(score);
+  // Use centralized formatter but extract the color class (text-...)
+  const colorClass = getScoreColor(score);
 
   return (
     <div className="relative inline-flex flex-col items-center">

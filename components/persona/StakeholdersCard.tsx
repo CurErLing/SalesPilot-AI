@@ -7,6 +7,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { Stakeholder, Relationship } from '../../types';
 import { StakeholderOrgChart } from './StakeholderOrgChart';
 import { getStanceColor, getRoleColor, getRoleLabel } from '../../utils/formatters';
+import { Avatar } from '../ui/Avatar';
 
 interface Props {
     stakeholders: Stakeholder[];
@@ -77,9 +78,7 @@ export const StakeholdersCard: React.FC<Props> = ({ stakeholders, relationships 
                                     onClick={() => onView(dm)}
                                     className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
                                 >
-                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-500 border border-white shadow-sm shrink-0">
-                                        {dm.name.charAt(0)}
-                                    </div>
+                                    <Avatar name={dm.name} size="md" className="border-white shadow-sm shrink-0 bg-slate-100 text-slate-500" />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <span className="text-sm font-bold text-slate-800 truncate">{dm.name}</span>

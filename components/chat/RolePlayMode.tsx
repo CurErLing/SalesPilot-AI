@@ -1,100 +1,58 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Customer, ChatMessage, Stakeholder } from '../../types';
 import { startRolePlaySession } from '../../services/geminiService';
 import { Send, Swords, Mic } from 'lucide-react';
 import { ChatBubble } from '../ui/ChatBubble';
+import { useChatStream } from '../../hooks/useChatStream';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 
 interface Props {
   customer: Customer;
 }
 
 export const RolePlayMode: React.FC<Props> = ({ customer }) => {
-  const [rolePlayMessages, setRolePlayMessages] = useState<ChatMessage[]>([]);
-  const [rolePlayInput, setRolePlayInput] = useState('');
   const [selectedStakeholder, setSelectedStakeholder] = useState<Stakeholder | null>(null);
   const [isRolePlayActive, setIsRolePlayActive] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+
+  // Hook handles stream, state, and scrolling
+  const { 
+      messages, 
+      input, 
+      setInput, 
+      isStreaming, 
+      submitMessage, 
+      messagesEndRef,
+      setMessages 
+  } = useChatStream(initialMessages, (history, msg) => startRolePlaySession(history, msg, customer, selectedStakeholder));
+
+  const { isListening, toggleListening } = useSpeechRecognition({
+      onResult: (text) => setInput(prev => prev + text)
+  });
 
   useEffect(() => {
     // Reset when customer changes
     resetRolePlay();
   }, [customer.id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [rolePlayMessages, isRolePlayActive]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const toggleVoiceInput = () => {
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("您的浏览器暂不支持语音输入功能，请使用 Chrome 或 Edge。");
-      return;
-    }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'zh-CN';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setRolePlayInput(prev => prev + transcript);
-    };
-    recognition.start();
-  };
-
   const startRolePlay = (dm: Stakeholder) => {
       setSelectedStakeholder(dm);
       setIsRolePlayActive(true);
-      setRolePlayMessages([
-        { id: 'rp-init', role: 'model', text: `(已进入角色: ${dm.name} - ${dm.title})\n\n你好，我是${dm.name}。找我有什么事？简单直接点。`, timestamp: Date.now() }
-      ]);
-  };
-
-  const handleRolePlaySend = async () => {
-    if (!rolePlayInput.trim() || isStreaming || !selectedStakeholder) return;
-    const text = rolePlayInput;
-    setRolePlayInput('');
-
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() };
-    setRolePlayMessages(prev => [...prev, userMsg]);
-    setIsStreaming(true);
-
-    const history = rolePlayMessages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-
-    try {
-        const streamResult = await startRolePlaySession(history, text, customer, selectedStakeholder);
-        const botMsgId = (Date.now() + 1).toString();
-        setRolePlayMessages(prev => [...prev, { id: botMsgId, role: 'model', text: '', timestamp: Date.now() }]);
-  
-        let fullText = "";
-        for await (const chunk of streamResult) {
-          fullText += chunk.text;
-          setRolePlayMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text: fullText } : m));
-        }
-    } catch (e) {
-        console.error(e);
-    } finally {
-        setIsStreaming(false);
-    }
+      const initMsg: ChatMessage = { 
+          id: 'rp-init', 
+          role: 'model', 
+          text: `(已进入角色: ${dm.name} - ${dm.title})\n\n你好，我是${dm.name}。找我有什么事？简单直接点。`, 
+          timestamp: Date.now() 
+      };
+      setInitialMessages([initMsg]);
+      setMessages([initMsg]); 
   };
 
   const resetRolePlay = () => {
       setIsRolePlayActive(false);
       setSelectedStakeholder(null);
-      setRolePlayMessages([]);
+      setMessages([]);
   };
 
   return (
@@ -141,7 +99,7 @@ export const RolePlayMode: React.FC<Props> = ({ customer }) => {
                     <button onClick={resetRolePlay} className="text-[10px] text-indigo-500 hover:underline">重置</button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                    {rolePlayMessages.map(msg => (
+                    {messages.map(msg => (
                         <ChatBubble 
                             key={msg.id} 
                             role={msg.role} 
@@ -160,15 +118,15 @@ export const RolePlayMode: React.FC<Props> = ({ customer }) => {
                             <input 
                                 className="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-500 outline-none"
                                 placeholder="输入演练话术..."
-                                value={rolePlayInput}
-                                onChange={(e) => setRolePlayInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleRolePlaySend()}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && submitMessage()}
                             />
-                            <button onClick={toggleVoiceInput} className={`absolute right-1 top-1 p-1.5 rounded-lg ${isListening ? 'bg-red-500 text-white' : 'text-slate-400'}`}>
+                            <button onClick={toggleListening} className={`absolute right-1 top-1 p-1.5 rounded-lg ${isListening ? 'bg-red-500 text-white' : 'text-slate-400'}`}>
                                 <Mic className="w-4 h-4" />
                             </button>
                         </div>
-                        <button onClick={handleRolePlaySend} disabled={!rolePlayInput.trim() || isStreaming} className="p-2.5 bg-slate-700 text-white rounded-xl">
+                        <button onClick={() => submitMessage()} disabled={!input.trim() || isStreaming} className="p-2.5 bg-slate-700 text-white rounded-xl">
                             <Send className="w-4 h-4" />
                         </button>
                     </div>

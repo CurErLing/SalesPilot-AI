@@ -73,5 +73,24 @@ export const getStatusColor = (status: string) => {
     if (status === '线索') return 'bg-blue-100 text-blue-700';
     if (status === '谈判') return 'bg-amber-100 text-amber-700';
     if (status === '赢单') return 'bg-emerald-100 text-emerald-700';
+    if (status === '输单') return 'bg-slate-100 text-slate-500';
     return 'bg-slate-100 text-slate-700';
+};
+
+export const getSentimentColor = (sentiment?: string) => {
+    switch(sentiment) {
+        case 'Positive': return 'text-emerald-500 bg-emerald-50 border-emerald-200';
+        case 'Negative': return 'text-red-500 bg-red-50 border-red-200';
+        case 'Risk': return 'text-amber-600 bg-amber-50 border-amber-200';
+        default: return 'text-slate-500 bg-slate-50 border-slate-200';
+    }
+};
+
+export const getSentimentLabel = (sentiment?: string) => {
+    switch(sentiment) {
+        case 'Positive': return '推进顺利';
+        case 'Negative': return '客户消极';
+        case 'Risk': return '存在风险';
+        default: return '一般互动';
+    }
 };

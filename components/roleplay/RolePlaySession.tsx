@@ -1,10 +1,11 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Customer, Stakeholder, ChatMessage } from '../../types';
 import { startRolePlaySession } from '../../services/geminiService';
-import { RefreshCw, Send, Mic } from 'lucide-react'; // Added Mic if needed later, kept strictly to logic for now
+import { RefreshCw, Send } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ChatBubble } from '../ui/ChatBubble';
+import { useChatStream } from '../../hooks/useChatStream';
 
 interface Props {
   customer: Customer;
@@ -13,60 +14,23 @@ interface Props {
 }
 
 export const RolePlaySession: React.FC<Props> = ({ customer, stakeholder, onEndSession }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Initialize Session
-  useEffect(() => {
-    setMessages([
+  const initialMessages = useMemo<ChatMessage[]>(() => [
       { 
         id: 'init', 
         role: 'model', 
         text: `(AI 已扮演 ${stakeholder.name} - ${stakeholder.title})\n\n你好，我是${stakeholder.name}。关于你们的方案，我只有几分钟时间，请直奔主题吧。`, 
         timestamp: Date.now() 
       }
-    ]);
-  }, [stakeholder]);
+  ], [stakeholder.id]);
 
-  // Auto-scroll
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isStreaming) return;
-
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: Date.now() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setIsStreaming(true);
-
-    const history = messages.map(m => ({
-      role: m.role,
-      parts: [{ text: m.text }]
-    }));
-
-    try {
-      const streamResult = await startRolePlaySession(history, userMsg.text, customer, stakeholder);
-      
-      const botMsgId = (Date.now() + 1).toString();
-      setMessages(prev => [...prev, { id: botMsgId, role: 'model', text: '', timestamp: Date.now() }]);
-
-      let fullText = "";
-      for await (const chunk of streamResult) {
-        fullText += chunk.text;
-        setMessages(prev => 
-            prev.map(m => m.id === botMsgId ? { ...m, text: fullText } : m)
-        );
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsStreaming(false);
-    }
-  };
+  const { 
+      messages, 
+      input, 
+      setInput, 
+      isStreaming, 
+      submitMessage, 
+      messagesEndRef 
+  } = useChatStream(initialMessages, (history, msg) => startRolePlaySession(history, msg, customer, stakeholder));
 
   return (
     <div className="h-full flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -109,12 +73,12 @@ export const RolePlaySession: React.FC<Props> = ({ customer, stakeholder, onEndS
               <input
                  value={input}
                  onChange={(e) => setInput(e.target.value)}
-                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                 onKeyDown={(e) => e.key === 'Enter' && submitMessage()}
                  placeholder="输入你的话术，开始攻防演练..."
                  className="flex-1 border border-slate-300 rounded-xl p-3 pr-12 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
               />
               <button 
-                  onClick={handleSend}
+                  onClick={() => submitMessage()}
                   disabled={!input.trim() || isStreaming}
                   className="absolute right-2 top-2 p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >

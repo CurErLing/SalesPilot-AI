@@ -1,12 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { VisitRecord, Customer } from '../../types';
-import { Phone, Mail, MessageSquare, Briefcase, Calendar, Mic, Image as ImageIcon, Target, ArrowRight, Clock, Search, X, Filter } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Briefcase, Calendar, Mic, Image as ImageIcon, Target, ArrowRight, Clock, Filter } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { Avatar } from '../ui/Avatar';
 import { Plus } from 'lucide-react';
+import { getSentimentColor, getSentimentLabel } from '../../utils/formatters';
+import { SearchInput } from '../ui/SearchInput';
 
 interface Props {
     visits: VisitRecord[];
@@ -56,15 +58,6 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
         }
     };
 
-    const getSentimentStyles = (sentiment?: string) => {
-        switch(sentiment) {
-            case 'Positive': return { color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', label: '推进顺利' };
-            case 'Negative': return { color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200', label: '客户消极' };
-            case 'Risk': return { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: '存在风险' };
-            default: return { color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', label: '一般互动' };
-        }
-    };
-
     return (
         <div className="h-full flex flex-col p-1 gap-6 relative animate-in fade-in duration-300">
             
@@ -81,24 +74,13 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
 
             {/* Filter Toolbar */}
             <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input 
-                        type="text"
-                        placeholder="搜索纪要、逐字稿或计划..."
-                        className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    {searchQuery && (
-                        <button 
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                </div>
+                <SearchInput 
+                    containerClassName="flex-1"
+                    placeholder="搜索纪要、逐字稿或计划..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onClear={() => setSearchQuery('')}
+                />
                 
                 <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
                      <select 
@@ -218,8 +200,7 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
 
                             {completedVisits.map((visit) => {
                                 const Icon = getIcon(visit.type);
-                                const sentiment = getSentimentStyles(visit.sentiment);
-
+                                
                                 return (
                                     <div key={visit.id} onClick={() => onSelect(visit)} className="relative pl-20 group cursor-pointer">
                                         
@@ -236,8 +217,8 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                                         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
                                             <div className="flex justify-between items-start mb-2">
                                                 <h3 className="font-bold text-slate-800 text-base group-hover:text-indigo-600 transition-colors">{visit.title}</h3>
-                                                <div className={`px-2 py-0.5 rounded text-[10px] font-bold border ${sentiment.bg} ${sentiment.color} ${sentiment.border}`}>
-                                                    {sentiment.label}
+                                                <div className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getSentimentColor(visit.sentiment)}`}>
+                                                    {getSentimentLabel(visit.sentiment)}
                                                 </div>
                                             </div>
 

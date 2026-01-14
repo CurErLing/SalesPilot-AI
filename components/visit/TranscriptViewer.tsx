@@ -1,14 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { Badge } from '../ui/Badge';
-import { UserCircle } from 'lucide-react';
+import { UserCircle, Clock } from 'lucide-react';
 import { Stakeholder } from '../../types';
 import { Avatar } from '../ui/Avatar';
-
-interface TranscriptSegment {
-    speaker: string;
-    text: string;
-}
+import { parseTranscript } from '../../utils/transcriptHelper';
 
 interface Props {
     transcript: string;
@@ -23,34 +19,11 @@ export const TranscriptViewer: React.FC<Props> = ({
     stakeholders, 
     onMapSpeaker 
 }) => {
-    // FIX: Use index (number) instead of speaker name to uniquely identify which dropdown to open
     const [mappingMenuOpenIndex, setMappingMenuOpenIndex] = useState<number | null>(null);
 
-    // --- Transcript Parsing Logic ---
-    const parsedTranscript = useMemo<TranscriptSegment[]>(() => {
-        const raw = transcript || '';
-        if (!raw) return [];
-
-        // Check if the text actually has speaker labels.
-        const hasLabels = /([A-Za-z0-9\u4e00-\u9fa5]+)[:：]/.test(raw);
-        
-        if (!hasLabels) {
-            return [{ speaker: 'Unknown', text: raw }];
-        }
-
-        // Split by pattern that looks like "Name:"
-        const parts = raw.split(/(?:^|\s+)([A-Za-z0-9\u4e00-\u9fa5]+)[:：]/g);
-        
-        const segments: TranscriptSegment[] = [];
-        for (let i = 1; i < parts.length; i += 2) {
-            const speaker = parts[i];
-            const text = parts[i+1];
-            if (text && text.trim()) {
-                segments.push({ speaker, text: text.trim() });
-            }
-        }
-        
-        return segments;
+    // --- Transcript Parsing Logic using Helper ---
+    const parsedSegments = useMemo(() => {
+        return parseTranscript(transcript);
     }, [transcript]);
 
     const handleSelectSpeaker = (originalSpeaker: string, name: string) => {
@@ -71,13 +44,14 @@ export const TranscriptViewer: React.FC<Props> = ({
             </div>
             
             <div className="p-6 space-y-6 max-h-[800px] overflow-y-auto custom-scrollbar">
-                {parsedTranscript.map((segment, idx) => {
+                {parsedSegments.map((segment, idx) => {
                     const originalSpeaker = segment.speaker;
                     const mappedName = speakerMapping[originalSpeaker] || originalSpeaker;
                     
                     // Check if mapped name matches a known stakeholder
                     const matchedStakeholder = stakeholders.find(dm => dm.name === mappedName);
                     const isMe = mappedName === '我' || mappedName === 'Me' || mappedName === '销售' || mappedName === 'Sales';
+                    const hasTime = segment.time && segment.time !== '00:00';
 
                     return (
                         <div key={idx} className="flex gap-4 group">
@@ -100,7 +74,7 @@ export const TranscriptViewer: React.FC<Props> = ({
                                 <div className="relative">
                                     <button 
                                         onClick={() => setMappingMenuOpenIndex(mappingMenuOpenIndex === idx ? null : idx)}
-                                        className="text-[10px] font-medium text-slate-500 hover:text-indigo-600 truncate max-w-[60px] text-center"
+                                        className="text-[10px] font-medium text-slate-500 hover:text-indigo-600 truncate max-w-[60px] text-center block mx-auto"
                                     >
                                         {mappedName}
                                     </button>
@@ -141,11 +115,18 @@ export const TranscriptViewer: React.FC<Props> = ({
 
                             {/* Text Bubble */}
                             <div className="flex-1">
-                                {matchedStakeholder && (
-                                    <div className="text-[10px] font-bold text-emerald-600 mb-0.5 flex items-center gap-1">
-                                        {matchedStakeholder.title}
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2 mb-1">
+                                    {matchedStakeholder && (
+                                        <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                                            {matchedStakeholder.title}
+                                        </div>
+                                    )}
+                                    {hasTime && (
+                                        <div className="text-[10px] text-slate-300 font-mono flex items-center gap-0.5">
+                                            <Clock className="w-2.5 h-2.5" /> {segment.time}
+                                        </div>
+                                    )}
+                                </div>
                                 <div className={`p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${isMe ? 'bg-indigo-50 text-indigo-900 rounded-tl-none' : 'bg-slate-50 text-slate-800 rounded-tl-none border border-slate-100'}`}>
                                     {segment.text}
                                 </div>
@@ -154,12 +135,9 @@ export const TranscriptViewer: React.FC<Props> = ({
                     );
                 })}
 
-                {parsedTranscript.length === 0 && (
+                {parsedSegments.length === 0 && (
                         <div className="text-center py-10 text-slate-400">
-                            <p>无法识别对话格式，显示原始文本：</p>
-                            <div className="mt-4 p-4 bg-slate-50 rounded text-left whitespace-pre-wrap font-mono text-xs">
-                                {transcript}
-                            </div>
+                            <p>暂无对话内容。</p>
                         </div>
                 )}
             </div>

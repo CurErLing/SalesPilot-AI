@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Search, X } from 'lucide-react';
+import { SearchInput } from '../ui/SearchInput';
 
 interface Props {
     searchQuery: string;
@@ -21,24 +21,13 @@ export const DashboardToolbar: React.FC<Props> = ({
     return (
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-8 space-y-4 lg:space-y-0 lg:flex lg:items-center lg:justify-between sticky top-0 z-10 shadow-md">
             {/* Search */}
-            <div className="relative flex-1 max-w-lg">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input 
-                    type="text"
-                    placeholder="搜索客户、项目、行业或拜访记录..."
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                    <button 
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                )}
-            </div>
+            <SearchInput 
+                containerClassName="flex-1 max-w-lg"
+                placeholder="搜索客户、项目、行业或拜访记录..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery('')}
+            />
 
             {/* Filters & Sort */}
             <div className="flex flex-wrap items-center gap-3">
