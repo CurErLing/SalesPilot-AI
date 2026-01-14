@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Customer, VisitRecord } from '../../types';
 import { VisitRecordList } from './VisitRecordList';
@@ -73,6 +74,7 @@ const VisitRecordsView: React.FC<Props> = ({ customer, onUpdate }) => {
               customer={customer}
               isNew={isCreating}
               onSave={handleSaveRecord}
+              onUpdateCustomer={onUpdate}
               onBack={handleBack}
           />
       );

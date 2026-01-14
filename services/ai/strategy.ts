@@ -8,7 +8,8 @@ import {
   getStrategyPrompt, 
   getSalesPitchPrompt, 
   getIceBreakerPrompt, 
-  getVisitPlanPrompt 
+  getVisitPlanPrompt,
+  getCompetitorBattleCardPrompt // Imported new prompt
 } from "../../prompts/index";
 
 // 2. Customer Value Assessment (Scoring)
@@ -161,7 +162,7 @@ export const generateIceBreaker = async (noteContent: string, customer: Customer
     }
 };
 
-// 11. NEW: Generate Visit Plan (Agenda & Questions)
+// 11. Generate Visit Plan (Agenda & Questions)
 export const generateVisitPlan = async (customer: Customer, goal: string, stakeholders: any[]): Promise<{
     agendaItems: string[];
     targetQuestions: string[];
@@ -190,5 +191,44 @@ export const generateVisitPlan = async (customer: Customer, goal: string, stakeh
     } catch (e) {
         console.error("Error generating visit plan:", e);
         return { agendaItems: [], targetQuestions: [], requiredMaterials: [] };
+    }
+};
+
+// 12. NEW: Generate Competitor Battle Card
+export const generateCompetitorBattleCard = async (competitorName: string, customer: Customer): Promise<{
+    competitor_strength: string;
+    competitor_weakness: string;
+    our_kill_points: string[];
+    trap_question: string;
+}> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: MODEL_REASONING,
+            contents: getCompetitorBattleCardPrompt(competitorName, customer),
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        competitor_strength: { type: Type.STRING },
+                        competitor_weakness: { type: Type.STRING },
+                        our_kill_points: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        trap_question: { type: Type.STRING }
+                    }
+                }
+            }
+        });
+
+        const text = response.text;
+        if (!text) throw new Error("No response");
+        return cleanAndParseJSON(text);
+    } catch (e) {
+        console.error("Error generating battle card:", e);
+        return { 
+            competitor_strength: "无法分析", 
+            competitor_weakness: "无法分析", 
+            our_kill_points: ["AI 服务暂时不可用"], 
+            trap_question: "无法生成" 
+        };
     }
 };

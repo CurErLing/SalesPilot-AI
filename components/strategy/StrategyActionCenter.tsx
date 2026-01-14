@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { PlayCircle, Zap, Mail, Phone, Check, Copy, Swords, Target, FileText, Briefcase, DollarSign } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { LoadingState } from '../ui/LoadingState';
+import { ThinkingState } from '../ui/ThinkingState';
+import { Tabs } from '../ui/Tabs';
 
 export interface StrategyResult {
     immediate_action: string;
@@ -30,12 +31,25 @@ export const StrategyActionCenter: React.FC<Props> = ({ strategy, loading, onGen
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const TAB_ITEMS = [
+        { id: 'plan', label: '行动指南', icon: Zap },
+        { id: 'email', label: '邮件草稿', icon: Mail },
+        { id: 'call', label: '通话脚本', icon: Phone },
+        { id: 'proposal', label: '方案建议', icon: FileText },
+    ];
+
     const renderContent = () => {
         if (loading) {
             return (
-                <LoadingState 
+                <ThinkingState 
                     title="AI 军师正在制定作战计划..."
-                    subtitle="基于客户画像、MEDDIC 模型与历史交互数据"
+                    steps={[
+                        `回顾项目所处阶段 (${customerStatus})...`,
+                        "分析关键决策人性格与立场...",
+                        "挖掘潜在的竞争对手与风险点...",
+                        "基于痛点构建核心价值主张...",
+                        "生成针对性的行动话术与邮件草稿..."
+                    ]}
                 />
             );
         }
@@ -54,33 +68,13 @@ export const StrategyActionCenter: React.FC<Props> = ({ strategy, loading, onGen
 
         return (
             <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in">
-                {/* Tab Navigation */}
-                <div className="flex border-b border-slate-100 bg-slate-50/50">
-                    <button 
-                        onClick={() => setActiveTab('plan')}
-                        className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'plan' ? 'border-indigo-500 text-indigo-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                    >
-                        <Zap className="w-4 h-4" /> 行动指南
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('email')}
-                        className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'email' ? 'border-indigo-500 text-indigo-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                    >
-                        <Mail className="w-4 h-4" /> 邮件草稿
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('call')}
-                        className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'call' ? 'border-indigo-500 text-indigo-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                    >
-                        <Phone className="w-4 h-4" /> 通话脚本
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('proposal')}
-                        className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'proposal' ? 'border-indigo-500 text-indigo-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-                    >
-                        <FileText className="w-4 h-4" /> 方案建议
-                    </button>
-                </div>
+                {/* Use reusable Tabs component */}
+                <Tabs 
+                    items={TAB_ITEMS}
+                    activeId={activeTab}
+                    onChange={(id) => setActiveTab(id as any)}
+                    variant="underline"
+                />
 
                 {/* Tab Content */}
                 <div className="flex-1 overflow-y-auto p-6 bg-white relative custom-scrollbar">

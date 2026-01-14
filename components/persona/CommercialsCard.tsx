@@ -5,6 +5,7 @@ import { Card, CardTitle, CardDescription } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { TagInput } from '../ui/TagInput';
+import { FieldMetadata } from '../../types';
 
 interface Props {
     budget: string;
@@ -12,9 +13,10 @@ interface Props {
     competitors: string[];
     onChange: (field: 'budget' | 'projectTimeline' | 'competitors', value: any) => void;
     onAnalyze: () => void;
+    metadata?: Record<string, FieldMetadata>; // NEW
 }
 
-export const CommercialsCard: React.FC<Props> = ({ budget, projectTimeline, competitors, onChange, onAnalyze }) => {
+export const CommercialsCard: React.FC<Props> = ({ budget, projectTimeline, competitors, onChange, onAnalyze, metadata }) => {
     return (
         <Card className="p-6">
             <CardTitle icon={Wallet}><span className="text-base">商务条件</span></CardTitle>
@@ -27,6 +29,7 @@ export const CommercialsCard: React.FC<Props> = ({ budget, projectTimeline, comp
                         onChange={(e) => onChange('budget', e.target.value)}
                         placeholder="-- 未填写 --"
                         className="bg-slate-50 font-bold text-emerald-600 focus:bg-white"
+                        metadata={metadata?.['budget']}
                     />
                     <Input 
                         label="预计时间表"
@@ -34,6 +37,7 @@ export const CommercialsCard: React.FC<Props> = ({ budget, projectTimeline, comp
                         onChange={(e) => onChange('projectTimeline', e.target.value)}
                         placeholder="-- 未填写 --"
                         className="bg-slate-50 focus:bg-white"
+                        metadata={metadata?.['projectTimeline']}
                     />
                 </div>
 

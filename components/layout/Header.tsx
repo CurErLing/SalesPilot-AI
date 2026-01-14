@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Customer } from '../../types';
 import { Badge } from '../ui/Badge';
 import { ChevronRight, Home, TrendingUp, Wallet, Clock, Check, ChevronDown } from 'lucide-react';
+import { getScoreColor } from '../../utils/formatters';
 
 interface HeaderProps {
   customer: Customer;
@@ -14,13 +15,6 @@ const STAGES = ['线索', '合格', '提案', '谈判', '赢单'];
 
 export const Header: React.FC<HeaderProps> = ({ customer, onUpdate, onBack }) => {
   const [isStageMenuOpen, setIsStageMenuOpen] = useState(false);
-
-  const getScoreColor = (score?: number) => {
-      if (!score) return 'text-slate-400';
-      if (score >= 80) return 'text-emerald-500';
-      if (score >= 60) return 'text-amber-500';
-      return 'text-red-500';
-  };
 
   const handleStageChange = (newStage: any) => {
       onUpdate({ ...customer, status: newStage });
@@ -108,8 +102,6 @@ export const Header: React.FC<HeaderProps> = ({ customer, onUpdate, onBack }) =>
                              const isActive = stage === customer.status;
                              const isPast = STAGES.indexOf(customer.status) > idx;
                              
-                             // Only show current, previous, and next on small screens if needed, 
-                             // but for this design we show the Chevron flow
                              return (
                                  <div key={stage} className="flex items-center relative group/step">
                                      <div 

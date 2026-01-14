@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Customer, PersonaData, Stakeholder } from '../../types';
+import { Customer, PersonaData, Stakeholder, PainPoint, Relationship } from '../../types';
 import { extractPersonaData } from '../../services/geminiService';
+import { mergePersonaWithMetadata } from '../../utils/personaHelper';
 import { StakeholderProfileModal } from '../StakeholderProfileModal';
 
 // Sub-components
@@ -11,6 +12,7 @@ import { StakeholdersCard } from './StakeholdersCard';
 import { NeedsCard } from './NeedsCard';
 import { StakeholderEditModal } from './StakeholderEditModal';
 import { AIQuickFill } from './AIQuickFill';
+import { Tabs } from '../ui/Tabs';
 
 // Icons
 import { LayoutGrid, Users, Target, Swords } from 'lucide-react';
@@ -36,29 +38,14 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
   const handleAIAnalyze = async (rawInput: string) => {
     setIsAnalyzing(true);
     try {
-      // Pass the current persona so AI can do delta updates and arithmetic
       const extracted = await extractPersonaData(rawInput, customer.persona);
       
-      const updatedPersona: PersonaData = {
-        ...customer.persona,
-        industry: extracted.industry || customer.persona.industry,
-        companySize: extracted.companySize || customer.persona.companySize,
-        scenario: extracted.scenario || customer.persona.scenario,
-        projectBackground: extracted.projectBackground || customer.persona.projectBackground,
-        budget: extracted.budget || customer.persona.budget,
-        projectTimeline: extracted.projectTimeline || customer.persona.projectTimeline,
-        currentSolution: extracted.currentSolution || customer.persona.currentSolution,
-        customerExpectations: extracted.customerExpectations || customer.persona.customerExpectations,
-        
-        // Arrays: Merge new items with existing items
-        keyPainPoints: extracted.keyPainPoints?.length ? [...new Set([...(customer.persona.keyPainPoints || []), ...extracted.keyPainPoints])] : customer.persona.keyPainPoints,
-        decisionMakers: extracted.decisionMakers?.length ? [...(customer.persona.decisionMakers || []), ...extracted.decisionMakers] : customer.persona.decisionMakers,
-        competitors: extracted.competitors?.length ? [...new Set([...(customer.persona.competitors || []), ...extracted.competitors])] : customer.persona.competitors,
-      };
+      // Use enhanced helper to merge both simple fields and arrays (PainPoints, Competitors, DMs)
+      const finalPersona = mergePersonaWithMetadata(customer.persona, extracted, "AI Quick Fill");
       
       onUpdate({
         ...customer,
-        persona: updatedPersona
+        persona: finalPersona
       });
     } catch (e) {
       console.error(e);
@@ -83,7 +70,6 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
       onUpdate({ ...customer, status: newStatus });
   };
 
-  // --- Stakeholder Actions ---
   const handleSaveStakeholder = (data: Partial<Stakeholder>) => {
       if (!data.name) return;
       
@@ -115,81 +101,69 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
       setEditingStakeholder(null);
   };
 
-  // --- Render Tabs (Modern Segmented Control) ---
-  const renderTabButton = (id: TabType, label: string, icon: React.ElementType) => {
-      const isActive = activeTab === id;
-      const Icon = icon;
-      return (
-          <button
-              onClick={() => setActiveTab(id)}
-              className={`
-                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
-                  ${isActive 
-                      ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}
-              `}
-          >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
-              {label}
-          </button>
-      );
+  const handleStakeholderDataChange = (updates: { decisionMakers?: Stakeholder[]; relationships?: Relationship[] }) => {
+      const newPersona = { ...customer.persona };
+      if (updates.decisionMakers) newPersona.decisionMakers = updates.decisionMakers;
+      if (updates.relationships) newPersona.relationships = updates.relationships;
+      
+      onUpdate({ ...customer, persona: newPersona });
   };
+
+  const TAB_ITEMS = [
+      { id: 'OVERVIEW', label: '项目概览', icon: LayoutGrid },
+      { id: 'STAKEHOLDERS', label: '决策图谱', icon: Users },
+      { id: 'NEEDS', label: '需求与痛点', icon: Target },
+      { id: 'COMPETITION', label: '竞争格局', icon: Swords },
+  ];
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-slate-50/30">
       
-      {/* 1. Navigation Tabs (Pill Style Container) */}
+      {/* 1. Navigation Tabs */}
       <div className="px-6 py-4 flex shrink-0 bg-transparent pt-6">
-          <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/60">
-            {renderTabButton('OVERVIEW', '项目概览', LayoutGrid)}
-            {renderTabButton('STAKEHOLDERS', '决策图谱', Users)}
-            {renderTabButton('NEEDS', '需求与痛点', Target)}
-            {renderTabButton('COMPETITION', '竞争格局', Swords)}
-          </div>
+          <Tabs 
+            items={TAB_ITEMS}
+            activeId={activeTab}
+            onChange={(id) => setActiveTab(id as TabType)}
+            variant="pills"
+          />
       </div>
 
       {/* 2. Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar">
           <div className="max-w-6xl mx-auto space-y-6">
               
-              {/* TAB: OVERVIEW */}
               {activeTab === 'OVERVIEW' && (
                   <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <ProjectContextCard 
-                          // Identity
                           projectName={customer.projectName}
                           projectBackground={customer.persona.projectBackground}
                           status={customer.status}
                           companyName={customer.name}
-                          
-                          // Firmographics
                           industry={customer.persona.industry} 
                           companySize={customer.persona.companySize}
                           scenario={customer.persona.scenario}
-                          
-                          // Commercials
                           budget={customer.persona.budget}
                           projectTimeline={customer.persona.projectTimeline}
-                          
-                          // Handlers
+                          metadata={customer.persona._metadata}
                           onChange={handleFieldChange}
                           onStatusChange={handleStatusChange}
                       />
                   </div>
               )}
 
-              {/* TAB: STAKEHOLDERS */}
               {activeTab === 'STAKEHOLDERS' && (
                   <div className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <StakeholdersCard 
                           stakeholders={customer.persona.decisionMakers}
+                          relationships={customer.persona.relationships}
                           onAdd={() => setEditingStakeholder({})}
                           onView={setViewingStakeholder}
+                          onDataChange={handleStakeholderDataChange}
                       />
                   </div>
               )}
 
-              {/* TAB: NEEDS (Redesigned with AI on Right) */}
               {activeTab === 'NEEDS' && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="lg:col-span-2">
@@ -209,12 +183,12 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
                   </div>
               )}
 
-              {/* TAB: COMPETITION */}
               {activeTab === 'COMPETITION' && (
                   <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <CompetitiveLandscapeCard 
                           competitors={customer.persona.competitors}
                           onChange={handleFieldChange}
+                          customer={customer}
                           onAnalyze={() => {
                               if (onResearchCompetitors && customer.persona.competitors) {
                                   onResearchCompetitors(customer.persona.competitors);
@@ -226,7 +200,6 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
           </div>
       </div>
       
-      {/* Modals */}
       <StakeholderProfileModal 
          isOpen={!!viewingStakeholder}
          onClose={() => setViewingStakeholder(null)}
@@ -241,7 +214,7 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
         initialData={editingStakeholder}
         onSave={handleSaveStakeholder}
         onDelete={handleDeleteStakeholder}
-        allStakeholders={customer.persona.decisionMakers} // Pass full list for manager selection
+        allStakeholders={customer.persona.decisionMakers}
       />
 
     </div>

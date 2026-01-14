@@ -1,8 +1,11 @@
 
 import React, { useRef } from 'react';
 import { VisitRecord, Stakeholder } from '../../types';
-import { Clock, Mic, Trash2, Loader2, Image as ImageIcon, X, Plus, CheckSquare, Users, Target, ListChecks, HelpCircle, Sparkles, BrainCircuit, Check } from 'lucide-react';
+import { Clock, Mic, Trash2, Loader2, Image as ImageIcon, X, Plus, CheckSquare, Users, Target, ListChecks, HelpCircle, Check } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Textarea } from '../ui/Textarea';
+import { Select } from '../ui/Select';
 import { TranscriptEditor } from './TranscriptEditor';
 
 interface Props {
@@ -51,60 +54,48 @@ export const VisitRecordForm: React.FC<Props> = ({
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-8 animate-in fade-in duration-300">
             {/* Header: Logistics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">日期</label>
-                    <div className="relative">
-                        <Clock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                        <input 
-                            type="date" 
-                            className="w-full pl-10 p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
-                            value={record.date} 
-                            onChange={(e) => onChange({ ...record, date: e.target.value })} 
-                        />
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">方式</label>
-                    <select 
-                        className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium bg-white" 
-                        value={record.type} 
-                        onChange={(e) => onChange({ ...record, type: e.target.value as any })}
-                    >
-                        <option value="Meeting">实地拜访 / 会议</option>
-                        <option value="Call">电话沟通</option>
-                        <option value="Email">邮件往来</option>
-                        <option value="Other">其他</option>
-                    </select>
-                </div>
+                <Input 
+                    label="日期"
+                    type="date"
+                    value={record.date} 
+                    onChange={(e) => onChange({ ...record, date: e.target.value })}
+                    icon={Clock}
+                />
+                
+                <Select 
+                    label="方式"
+                    value={record.type}
+                    onChange={(e) => onChange({ ...record, type: e.target.value as any })}
+                    options={[
+                        { label: '实地拜访 / 会议', value: 'Meeting' },
+                        { label: '电话沟通', value: 'Call' },
+                        { label: '邮件往来', value: 'Email' },
+                        { label: '其他', value: 'Other' }
+                    ]}
+                />
+
                 {!isPlanned && (
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                            互动成效 / 态度
-                        </label>
-                        <select 
-                            className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium bg-white" 
-                            value={record.sentiment} 
-                            onChange={(e) => onChange({ ...record, sentiment: e.target.value as any })}
-                        >
-                            <option value="Neutral">😐 一般 (Neutral)</option>
-                            <option value="Positive">😊 推进顺利 (Positive)</option>
-                            <option value="Negative">😟 客户消极 (Negative)</option>
-                            <option value="Risk">⚠️ 存在风险 (Risk)</option>
-                        </select>
-                    </div>
+                    <Select 
+                        label="互动成效 / 态度"
+                        value={record.sentiment}
+                        onChange={(e) => onChange({ ...record, sentiment: e.target.value as any })}
+                        options={[
+                            { label: '😐 一般 (Neutral)', value: 'Neutral' },
+                            { label: '😊 推进顺利 (Positive)', value: 'Positive' },
+                            { label: '😟 客户消极 (Negative)', value: 'Negative' },
+                            { label: '⚠️ 存在风险 (Risk)', value: 'Risk' }
+                        ]}
+                    />
                 )}
             </div>
 
-            <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">主题</label>
-                <input 
-                    type="text" 
-                    placeholder="例如：需求沟通会议、价格谈判" 
-                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg text-slate-800 placeholder:font-normal placeholder:text-slate-300" 
-                    value={record.title} 
-                    onChange={(e) => onChange({ ...record, title: e.target.value })} 
-                />
-            </div>
+            <Input 
+                label="主题"
+                placeholder="例如：需求沟通会议、价格谈判"
+                value={record.title}
+                onChange={(e) => onChange({ ...record, title: e.target.value })}
+                className="font-bold text-lg"
+            />
 
             {/* Stakeholder Selector */}
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
@@ -155,7 +146,6 @@ export const VisitRecordForm: React.FC<Props> = ({
                                  <Button 
                                     size="sm" 
                                     variant="gradient" 
-                                    icon={Sparkles}
                                     onClick={onGeneratePlan} 
                                     isLoading={isGeneratingPlan}
                                     disabled={!record.visitGoal || !record.stakeholderIds || record.stakeholderIds.length === 0}
@@ -165,12 +155,12 @@ export const VisitRecordForm: React.FC<Props> = ({
                                  </Button>
                              )}
                          </div>
-                         <input 
-                             className="w-full p-3 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
+                         <Input 
                              placeholder="例如：确认预算金额，并推动技术选型" 
                              value={record.visitGoal || ''} 
                              onChange={(e) => onChange({ ...record, visitGoal: e.target.value })} 
                              disabled={isGeneratingPlan}
+                             className="border-indigo-200 focus:border-indigo-500"
                          />
                          <p className="text-[10px] text-indigo-400/80">提示：输入目标并选择参会人后，点击右侧 AI 按钮自动生成议程与提问。</p>
                      </div>
@@ -180,8 +170,8 @@ export const VisitRecordForm: React.FC<Props> = ({
                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1">
                                  <ListChecks className="w-4 h-4" /> 会议议程
                              </label>
-                             <textarea 
-                                 className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed" 
+                             <Textarea 
+                                 className="min-h-[200px]"
                                  placeholder="1. 破冰与回顾...&#10;2. 演示产品...&#10;3. ..." 
                                  value={record.agendaItems?.join('\n') || ''} 
                                  onChange={(e) => onChange({ ...record, agendaItems: e.target.value.split('\n') })} 
@@ -191,8 +181,8 @@ export const VisitRecordForm: React.FC<Props> = ({
                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1">
                                  <HelpCircle className="w-4 h-4 text-amber-500" /> 黄金提问
                              </label>
-                             <textarea 
-                                 className="w-full p-4 rounded-xl border border-amber-200 bg-amber-50/30 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed" 
+                             <Textarea 
+                                 className="min-h-[200px] border-amber-200 bg-amber-50/30 focus:bg-white focus:ring-amber-500"
                                  placeholder="AI 将根据画像缺口(Gap)生成必问问题..." 
                                  value={record.targetQuestions?.join('\n') || ''} 
                                  onChange={(e) => onChange({ ...record, targetQuestions: e.target.value.split('\n') })} 
@@ -235,7 +225,7 @@ export const VisitRecordForm: React.FC<Props> = ({
                                     </div>
                                 )}
 
-                                {/* Completed State (Just show simple summary, full transcript in detail view) */}
+                                {/* Completed State */}
                                 {aiStatus === 'completed' && (
                                     <div className="flex flex-col items-center gap-4 py-6">
                                         <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center animate-in zoom-in">
@@ -271,23 +261,20 @@ export const VisitRecordForm: React.FC<Props> = ({
                     {/* Show Insights Fields only when Analysis is Done */}
                     {(aiStatus === 'completed' || aiStatus === 'idle' || record.content) && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
-                            <div className="flex flex-col">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                                    {record.transcript ? "AI 总结 / 核心发现" : "详细纪要"}
-                                </label>
-                                <textarea 
-                                    className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed text-slate-700 shadow-inner" 
-                                    placeholder="记录会议的核心讨论点..." 
-                                    value={record.content} 
-                                    onChange={(e) => onChange({ ...record, content: e.target.value })} 
-                                />
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <Textarea 
+                                label={record.transcript ? "AI 总结 / 核心发现" : "详细纪要"}
+                                className="min-h-[200px] shadow-inner"
+                                placeholder="记录会议的核心讨论点..." 
+                                value={record.content} 
+                                onChange={(e) => onChange({ ...record, content: e.target.value })} 
+                            />
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wide mb-1.5 flex items-center gap-1">
                                     <CheckSquare className="w-3.5 h-3.5" /> 下一步计划 (Action Items)
                                 </label>
-                                <textarea 
-                                    className="w-full p-4 rounded-xl border border-indigo-200 bg-indigo-50/30 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed text-slate-700 shadow-inner" 
+                                <Textarea 
+                                    className="min-h-[200px] shadow-inner border-indigo-200 bg-indigo-50/30 focus:border-indigo-500"
                                     placeholder="明确具体的行动项、负责人和截止日期..." 
                                     value={record.nextSteps} 
                                     onChange={(e) => onChange({ ...record, nextSteps: e.target.value })} 
@@ -298,7 +285,7 @@ export const VisitRecordForm: React.FC<Props> = ({
                 </div>
             )}
 
-            {/* Image Uploader (Common) */}
+            {/* Image Uploader */}
             <div className="pt-6 border-t border-slate-100">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-slate-400" /> 图片附件 / 现场照片

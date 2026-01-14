@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Badge } from '../ui/Badge';
 import { UserCircle } from 'lucide-react';
 import { Stakeholder } from '../../types';
+import { Avatar } from '../ui/Avatar';
 
 interface TranscriptSegment {
     speaker: string;
@@ -83,14 +85,15 @@ export const TranscriptViewer: React.FC<Props> = ({
                             <div className="flex-shrink-0 w-12 flex flex-col items-center gap-1">
                                 <div 
                                     onClick={() => setMappingMenuOpenIndex(mappingMenuOpenIndex === idx ? null : idx)}
-                                    className={`
-                                        w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer transition-all border-2
-                                        ${isMe ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 
-                                          matchedStakeholder ? 'bg-emerald-100 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-500 border-transparent hover:border-indigo-300'}
-                                    `}
+                                    className="cursor-pointer transition-all hover:scale-105 active:scale-95"
                                     title="点击关联决策人"
                                 >
-                                    {matchedStakeholder ? matchedStakeholder.name.charAt(0) : mappedName.charAt(0)}
+                                    <Avatar 
+                                        name={matchedStakeholder ? matchedStakeholder.name : mappedName} 
+                                        size="md"
+                                        highlight={isMe || !!matchedStakeholder}
+                                        className={!isMe && !matchedStakeholder ? "bg-slate-100 text-slate-500 border-transparent hover:border-indigo-300 border-2" : ""}
+                                    />
                                 </div>
                                 
                                 {/* Speaker Name / Label */}

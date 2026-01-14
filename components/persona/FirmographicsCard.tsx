@@ -5,6 +5,7 @@ import { Card, CardTitle, CardDescription } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { enrichFirmographics } from '../../services/geminiService';
+import { FieldMetadata } from '../../types';
 
 interface Props {
     industry: string;
@@ -12,9 +13,10 @@ interface Props {
     scenario?: string; 
     onChange: (field: 'industry' | 'companySize' | 'scenario', value: string) => void;
     companyName?: string; 
+    metadata?: Record<string, FieldMetadata>; // NEW
 }
 
-export const FirmographicsCard: React.FC<Props> = ({ industry, companySize, scenario, onChange, companyName }) => {
+export const FirmographicsCard: React.FC<Props> = ({ industry, companySize, scenario, onChange, companyName, metadata }) => {
     const [loading, setLoading] = useState(false);
 
     const handleAutoFill = async () => {
@@ -60,6 +62,7 @@ export const FirmographicsCard: React.FC<Props> = ({ industry, companySize, scen
                     onChange={(e) => onChange('industry', e.target.value)}
                     placeholder="-- 未填写 --"
                     className="bg-slate-50 focus:bg-white"
+                    metadata={metadata?.['industry']}
                 />
                 
                 <Input 
@@ -68,6 +71,7 @@ export const FirmographicsCard: React.FC<Props> = ({ industry, companySize, scen
                     onChange={(e) => onChange('companySize', e.target.value)}
                     placeholder="-- 未填写 --"
                     className="bg-slate-50 focus:bg-white"
+                    metadata={metadata?.['companySize']}
                 />
 
                 <Input 
@@ -76,6 +80,7 @@ export const FirmographicsCard: React.FC<Props> = ({ industry, companySize, scen
                     onChange={(e) => onChange('scenario', e.target.value)}
                     placeholder="例如：门店数字化升级 / 供应链协同"
                     className="bg-indigo-50 border-indigo-200 focus:bg-white placeholder:text-indigo-300"
+                    metadata={metadata?.['scenario']}
                 />
             </div>
         </Card>

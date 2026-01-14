@@ -9,12 +9,84 @@ export const INITIAL_CUSTOMERS: Customer[] = [
         updatedAt: '2024/01/15',
         status: '谈判',
         lastContact: '2023-11-02',
-        assessmentScore: 85,
+        assessmentScore: 60,
+        assessmentResult: {
+            score: 60,
+            deal_health: 'At Risk',
+            summary: "该单处于风险状态。主要问题在于决策链条中的EB（李淑芬）态度不明且尚未被触达，目前的Champion（刘经理）层级较低，难以对抗持负面态度的技术架构师。虽然预算和时间明确，但面对SAP Ariba的竞争，尚未建立绝对的技术或业务壁垒。痛点分析流于表面，急需通过量化ROI来打动高层决策者。",
+            categories: [
+                {
+                    name: "需求与痛点 (Pain & Need)",
+                    score: 60,
+                    status: "Gap",
+                    evidence: [
+                        "识别了旧系统响应慢、数据孤岛和流程不透明三个核心痛点",
+                        "痛点来源于初次会议和架构评审"
+                    ],
+                    missing: [
+                        "缺乏痛点的财务量化（如：效率低下导致的每年直接损失金额）",
+                        "未明确业务部门对‘透明’的具体衡量标准"
+                    ],
+                    coaching_tip: "刘经理，除了目前的系统响应问题，李淑芬总在年度集团会议上被问及供应链效率时，最让她头疼的具体KPI指标是什么？如果我们能帮她提升这些指标，她会如何评估我们的价值？"
+                },
+                {
+                    name: "决策与权限 (Authority)",
+                    score: 45,
+                    status: "Gap",
+                    evidence: [
+                        "识别了EB（李淑芬）、Champion（刘经理）和Technical Buyer（王强/陈工）",
+                        "Champion虽然支持但层级较低（经理级）"
+                    ],
+                    missing: [
+                        "EB（李淑芬）态度中立且被标注为‘难搞’，目前未建立直接连接",
+                        "IT架构师陈工持负面态度，可能在技术评审中设置障碍"
+                    ],
+                    coaching_tip: "刘经理，如果王总和李总在最终决策上出现分歧，谁拥有最终的一票否决权？我们如何才能安排一次与李总的非正式沟通，来了解她对ROI的具体期待？"
+                },
+                {
+                    name: "方案与预算 (Solution & Budget)",
+                    score: 75,
+                    status: "Gap",
+                    evidence: [
+                        "预算350万明确",
+                        "针对SAP ERP对接和高并发稳定性进行了深入讨论"
+                    ],
+                    missing: [
+                        "尚未针对SAP Ariba的竞争威胁提出明确的差异化防御方案",
+                        "350万预算是否已通过财务部正式审批（Approved Budget vs Budgetary Quote）"
+                    ],
+                    coaching_tip: "王总，考虑到联想目前深度依赖SAP，且SAP Ariba具备原生集成优势，您认为我们在高并发性能上的哪些表现是他们无法替代的关键差异点？"
+                },
+                {
+                    name: "时机与竞争 (Timing & Competition)",
+                    score: 60,
+                    status: "Gap",
+                    evidence: [
+                        "有明确的上线时间要求：2024年Q1"
+                    ],
+                    missing: [
+                        "缺乏倒推的关键决策日期（Decision Date）",
+                        "未识别强迫性事件（Compelling Event），即为什么一定要在Q1上线"
+                    ],
+                    coaching_tip: "刘经理，为了确保Q1顺利上线，最晚必须在几号前完成合同签署？如果因为陈工的技术异议导致流程延至Q2，对您的部门目标会产生什么后果？"
+                }
+            ]
+        },
+        assessmentHistory: [
+            { date: '2023-09-15', score: 45, deal_health: 'Critical', main_gap: '决策人未识别，预算不明确' },
+            { date: '2023-10-05', score: 62, deal_health: 'At Risk', main_gap: '竞品 (SAP) 施压，技术架构存疑' },
+            { date: '2023-11-02', score: 85, deal_health: 'Healthy', main_gap: '法务审核流程尚未启动' },
+            { date: '2024-01-14', score: 60, deal_health: 'At Risk', main_gap: 'EB态度不明，竞品威胁未解除' }
+        ],
         notes: "与全球采购 IT 负责人王总进行了第二轮深入沟通。重点讨论了新一代 SRM 系统与现有 SAP ERP 的数据对接问题。客户非常关注高并发下的稳定性。",
         persona: {
             industry: '消费电子 / 制造',
             companySize: '10000人以上',
-            keyPainPoints: ['旧采购系统响应慢', '多系统数据孤岛', '供应商管理流程不透明'],
+            keyPainPoints: [
+                { id: 'p1', description: '旧采购系统响应慢', createdAt: '2023-09-15', source: 'Manual' },
+                { id: 'p2', description: '多系统数据孤岛', createdAt: '2023-10-01', source: 'Visit: Initial Meeting' },
+                { id: 'p3', description: '供应商管理流程不透明', createdAt: '2023-11-02', source: 'Visit: Architecture Review' }
+            ],
             currentSolution: '自研旧系统 + SAP ERP',
             decisionMakers: [
                 { id: 'dm2', name: '李淑芬', title: '供应链 VP', role: 'Economic Buyer', stance: 'Neutral', notes: '关注ROI，比较难搞' },
@@ -77,7 +149,10 @@ export const INITIAL_CUSTOMERS: Customer[] = [
         persona: {
             industry: '软件/互联网',
             companySize: '200-500人',
-            keyPainPoints: ['部署速度慢', '维护成本高'],
+            keyPainPoints: [
+                { id: 'p1', description: '部署速度慢', createdAt: '2023-10-01', source: 'Manual' },
+                { id: 'p2', description: '维护成本高', createdAt: '2023-10-24', source: 'Call' }
+            ],
             currentSolution: 'Jenkins',
             decisionMakers: [
                 { id: 'dm3', name: 'Sarah Wu', title: 'VP Engineering', role: 'Economic Buyer', stance: 'Champion', contact: 'sarah@techflow.io' }

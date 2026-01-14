@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import { Customer } from '../../types';
 import { generateSalesPitch } from '../../services/geminiService';
-import { Shield, Target, Sparkles, AlertCircle } from 'lucide-react';
+import { Shield, Target, Sparkles, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
 
 interface Props {
     customer: Customer;
@@ -15,16 +16,16 @@ interface Props {
 export const BattleCardsPanel: React.FC<Props> = ({ customer, onUpdate, objections }) => {
     const [loadingPitchFor, setLoadingPitchFor] = useState<string | null>(null);
 
-    const handleGeneratePitch = async (painPoint: string) => {
-        setLoadingPitchFor(painPoint);
+    const handleGeneratePitch = async (painPointDesc: string) => {
+        setLoadingPitchFor(painPointDesc);
         try {
-            const pitch = await generateSalesPitch(painPoint, customer);
+            const pitch = await generateSalesPitch(painPointDesc, customer);
             const currentPitches = customer.persona.painPointPitches || {};
             onUpdate({
                 ...customer,
                 persona: {
                     ...customer.persona,
-                    painPointPitches: { ...currentPitches, [painPoint]: pitch }
+                    painPointPitches: { ...currentPitches, [painPointDesc]: pitch }
                 }
             });
         } catch (e) {
@@ -34,13 +35,13 @@ export const BattleCardsPanel: React.FC<Props> = ({ customer, onUpdate, objectio
         }
     };
 
-    const handlePitchChange = (painPoint: string, newPitch: string) => {
+    const handlePitchChange = (painPointDesc: string, newPitch: string) => {
         const currentPitches = customer.persona.painPointPitches || {};
         onUpdate({
             ...customer,
             persona: {
                 ...customer.persona,
-                painPointPitches: { ...currentPitches, [painPoint]: newPitch }
+                painPointPitches: { ...currentPitches, [painPointDesc]: newPitch }
             }
         });
     };
@@ -65,24 +66,24 @@ export const BattleCardsPanel: React.FC<Props> = ({ customer, onUpdate, objectio
                     {customer.persona.keyPainPoints && customer.persona.keyPainPoints.length > 0 ? (
                         <div className="space-y-4">
                             {customer.persona.keyPainPoints.map((pp, i) => (
-                                <Card key={i} className="p-4 group border-slate-200 hover:border-indigo-300 transition-colors">
+                                <Card key={pp.id || i} className="p-4 group border-slate-200 hover:border-indigo-300 transition-colors">
                                     <div className="flex items-center gap-2 mb-3">
                                         <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                        <h4 className="font-semibold text-slate-800 text-sm">{pp}</h4>
+                                        <h4 className="font-semibold text-slate-800 text-sm">{pp.description}</h4>
                                     </div>
-                                    {customer.persona.painPointPitches?.[pp] ? (
+                                    {customer.persona.painPointPitches?.[pp.description] ? (
                                         <div className="relative">
                                             <textarea
-                                                value={customer.persona.painPointPitches[pp]}
-                                                onChange={(e) => handlePitchChange(pp, e.target.value)}
+                                                value={customer.persona.painPointPitches[pp.description]}
+                                                onChange={(e) => handlePitchChange(pp.description, e.target.value)}
                                                 className="w-full text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none resize-none leading-relaxed"
                                                 rows={3}
                                             />
                                             <div className="flex justify-end mt-1">
                                                 <button 
-                                                    onClick={() => handleGeneratePitch(pp)}
+                                                    onClick={() => handleGeneratePitch(pp.description)}
                                                     className="text-[10px] text-indigo-400 hover:text-indigo-600 flex items-center gap-1"
-                                                    disabled={loadingPitchFor === pp}
+                                                    disabled={loadingPitchFor === pp.description}
                                                 >
                                                     <Sparkles className="w-3 h-3" /> 优化话术
                                                 </button>
@@ -90,12 +91,12 @@ export const BattleCardsPanel: React.FC<Props> = ({ customer, onUpdate, objectio
                                         </div>
                                     ) : (
                                         <Button 
-                                            onClick={() => handleGeneratePitch(pp)}
-                                            disabled={loadingPitchFor === pp}
+                                            onClick={() => handleGeneratePitch(pp.description)}
+                                            disabled={loadingPitchFor === pp.description}
                                             variant="secondary"
                                             size="sm"
                                             icon={Sparkles}
-                                            isLoading={loadingPitchFor === pp}
+                                            isLoading={loadingPitchFor === pp.description}
                                             className="w-full text-xs"
                                         >
                                             生成进攻话术
@@ -105,8 +106,12 @@ export const BattleCardsPanel: React.FC<Props> = ({ customer, onUpdate, objectio
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-                            <p className="text-xs text-slate-400">暂无痛点数据，请在“客户画像”中完善。</p>
+                        <div className="py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                            <EmptyState 
+                                icon={AlertTriangle}
+                                title="暂无痛点数据"
+                                description="请先在“客户画像”中添加痛点，以便生成针对性话术。"
+                            />
                         </div>
                     )}
                 </div>

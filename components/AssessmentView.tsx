@@ -1,10 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { Customer, AssessmentResult } from '../types';
+import { Customer, AssessmentResult, AssessmentHistoryItem } from '../types';
 import { generateAssessment } from '../services/geminiService';
-import { TrendingUp, AlertTriangle, CheckCircle2, BarChart3, Sparkles, AlertCircle, HelpCircle, Activity, Target, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Sparkles, AlertCircle, HelpCircle, Activity, Target, RefreshCw, History } from 'lucide-react';
 import { Button } from './ui/Button';
-import { LoadingState } from './ui/LoadingState';
+import { ThinkingState } from './ui/ThinkingState'; 
+import { ScoreGauge } from './ui/ScoreGauge';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getHealthColor, getHealthLabel } from '../utils/formatters';
 
 interface Props {
   customer: Customer;
@@ -24,11 +27,25 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
     try {
         const result = await generateAssessment(customer);
         const typedResult = result as AssessmentResult;
+        
         setData(typedResult);
+
+        // Create History Entry
+        const mainGap = typedResult.categories.find(c => c.status === 'Gap')?.missing?.[0];
+        const newHistoryItem: AssessmentHistoryItem = {
+            date: new Date().toISOString().split('T')[0],
+            score: typedResult.score,
+            deal_health: typedResult.deal_health,
+            main_gap: mainGap
+        };
+
+        const updatedHistory = [...(customer.assessmentHistory || []), newHistoryItem];
+
         onUpdate({
             ...customer,
             assessmentScore: typedResult.score,
-            assessmentResult: typedResult
+            assessmentResult: typedResult,
+            assessmentHistory: updatedHistory
         });
     } catch (e) {
         console.error("Assessment failed", e);
@@ -37,30 +54,47 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
     }
   };
 
-  const getHealthColor = (health: string) => {
-      switch(health) {
-          case 'Healthy': return 'text-emerald-500 bg-emerald-50 border-emerald-200';
-          case 'At Risk': return 'text-amber-500 bg-amber-50 border-amber-200';
-          case 'Critical': return 'text-red-500 bg-red-50 border-red-200';
-          default: return 'text-slate-500 bg-slate-50 border-slate-200';
-      }
-  };
-
-  const getHealthLabel = (health: string) => {
-      switch(health) {
-          case 'Healthy': return '优质客户 (Healthy)';
-          case 'At Risk': return '存在风险 (At Risk)';
-          case 'Critical': return '低价值/危险 (Critical)';
-          default: return health;
-      }
+  // Custom Chart Tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const d = payload[0].payload as AssessmentHistoryItem;
+      return (
+        <div className="bg-white p-3 border border-slate-100 shadow-xl rounded-xl text-xs z-50">
+          <p className="text-slate-400 mb-1">{d.date}</p>
+          <div className="flex items-center gap-2 mb-1">
+              <span className="font-bold text-slate-800">评分: {d.score}</span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                  d.deal_health === 'Healthy' ? 'bg-emerald-100 text-emerald-700' : 
+                  d.deal_health === 'At Risk' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+              }`}>
+                  {d.deal_health}
+              </span>
+          </div>
+          {d.main_gap && (
+              <div className="mt-2 pt-2 border-t border-slate-50">
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1 mb-0.5">
+                      <AlertCircle className="w-3 h-3 text-red-400" /> 主要风险:
+                  </p>
+                  <p className="text-red-600 max-w-[180px] leading-snug">{d.main_gap}</p>
+              </div>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   if (loading) {
     return (
-        <LoadingState 
-            icon={BarChart3}
+        <ThinkingState 
             title="AI 正在进行全维度价值评估..."
-            subtitle="基于 MEDDIC/BANT 模型分析画像完整度与赢单概率"
+            steps={[
+                "读取客户全景画像数据...",
+                "分析历史拜访记录与情感倾向...",
+                "比对 MEDDIC 模型六大维度...",
+                "计算赢单概率与健康度...",
+                "生成针对性改进建议 (Coaching Tips)..."
+            ]}
         />
     );
   }
@@ -90,64 +124,95 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
     );
   }
 
+  // Determine trend arrow
+  const history = customer.assessmentHistory || [];
+  const previousScore = history.length > 1 ? history[history.length - 2].score : data.score;
+  const trend = data.score - previousScore;
+
   // Results View
   return (
     <div className="h-full overflow-y-auto p-1 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Top Banner: Deal Health & Actions */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden group">
-        <div className={`absolute top-0 left-0 w-2 h-full ${getHealthColor(data.deal_health).split(' ')[1].replace('bg-', 'bg-')}`}></div>
-        
-        {/* Score Gauge */}
-        <div className="relative flex-shrink-0">
-            <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 128 128">
-                <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
-                <circle 
-                    cx="64" 
-                    cy="64" 
-                    r="56" 
-                    stroke="currentColor" 
-                    strokeWidth="8" 
-                    fill="transparent" 
-                    strokeDasharray={351} 
-                    strokeDashoffset={351 - (351 * data.score) / 100} 
-                    strokeLinecap="round"
-                    className={`${data.score >= 70 ? 'text-emerald-500' : data.score >= 50 ? 'text-amber-500' : 'text-red-500'} transition-all duration-1000 ease-out`} 
-                />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-black text-slate-800">{data.score}</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">价值评分</span>
-            </div>
-        </div>
+      {/* Top Section: Split into Current Status & Trend Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Left: Current Score Gauge */}
+          <div className="lg:col-span-1 bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+                <div className={`absolute top-0 left-0 w-2 h-full ${getHealthColor(data.deal_health).split(' ')[1].replace('bg-', 'bg-')}`}></div>
+                
+                <div className="relative mb-4">
+                    <ScoreGauge score={data.score} trend={trend} size={128} />
+                </div>
 
-        {/* Health Text & Summary */}
-        <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border ${getHealthColor(data.deal_health)}`}>
+                <div className="text-center">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 border mb-3 ${getHealthColor(data.deal_health)}`}>
                         <Activity className="w-3.5 h-3.5" />
                         {getHealthLabel(data.deal_health)}
                     </span>
-                    <span className="text-xs text-slate-400 hidden sm:inline-block">基于画像自动化评级</span>
+                    <Button 
+                        onClick={handleRunAssessment} 
+                        variant="secondary" 
+                        size="sm" 
+                        icon={RefreshCw}
+                        className="w-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 shadow-sm"
+                    >
+                        重新评估
+                    </Button>
                 </div>
-                
-                {/* Update Button */}
-                <Button 
-                    onClick={handleRunAssessment} 
-                    variant="secondary" 
-                    size="sm" 
-                    icon={RefreshCw}
-                    className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 shadow-sm"
-                >
-                    重新评估
-                </Button>
-            </div>
-            <p className="text-slate-600 leading-relaxed font-medium text-sm">
+          </div>
+
+          {/* Right: History Trend Chart */}
+          <div className="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col">
+              <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+                      <History className="w-4 h-4 text-indigo-500" /> 
+                      评分历史演变
+                  </h3>
+                  {history.length <= 1 && (
+                      <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded">暂无足够历史数据</span>
+                  )}
+              </div>
+              
+              <div className="flex-1 w-full min-h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={history.length > 0 ? history : [{date: new Date().toISOString().split('T')[0], score: data.score}]}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis 
+                              dataKey="date" 
+                              tick={{fontSize: 10, fill: '#94a3b8'}} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              padding={{ left: 10, right: 10 }}
+                          />
+                          <YAxis 
+                              domain={[0, 100]} 
+                              tick={{fontSize: 10, fill: '#94a3b8'}} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              width={30}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Line 
+                              type="monotone" 
+                              dataKey="score" 
+                              stroke="#6366f1" 
+                              strokeWidth={3} 
+                              dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} 
+                              activeDot={{ r: 6, fill: '#4f46e5' }}
+                              animationDuration={1500}
+                          />
+                      </LineChart>
+                  </ResponsiveContainer>
+              </div>
+          </div>
+      </div>
+
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+          <h3 className="font-bold text-slate-800 text-sm mb-1">AI 诊断综述</h3>
+          <p className="text-slate-600 leading-relaxed font-medium text-sm">
                 {data.summary}
-            </p>
-        </div>
-    </div>
+          </p>
+      </div>
 
       {/* Grid: Gap Analysis */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

@@ -1,18 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
-import { VisitRecord, Customer } from '../../types';
+import { VisitRecord, Customer, PersonaData, PainPoint } from '../../types';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { ArrowLeft, Edit2, Save, Clock, Mic, FileText, CheckSquare, Target, Calendar, HelpCircle, Briefcase, PlayCircle, BrainCircuit } from 'lucide-react';
-import { generateMeetingTranscript, generateMeetingInsights, generateVisitPlan } from '../../services/geminiService';
+import { ArrowLeft, Edit2, Save, Clock, Mic, FileText, CheckSquare, Target, Calendar, HelpCircle, Briefcase, PlayCircle, BrainCircuit, Sparkles, UserPlus, AlertCircle, ArrowDown, Swords } from 'lucide-react';
+import { generateMeetingTranscript, generateMeetingInsights, generateVisitPlan, extractPersonaData } from '../../services/geminiService';
+import { mergePersonaWithMetadata } from '../../utils/personaHelper';
 import { TranscriptViewer } from './TranscriptViewer';
 import { VisitRecordForm } from './VisitRecordForm';
+import { Tabs } from '../ui/Tabs';
 
 interface Props {
     record: VisitRecord;
     customer: Customer;
     isNew?: boolean;
     onSave: (record: VisitRecord) => void;
+    onUpdateCustomer?: (customer: Customer) => void;
     onBack: () => void;
 }
 
@@ -20,7 +23,8 @@ export const VisitRecordDetail: React.FC<Props> = ({
     record: initialRecord, 
     customer, 
     isNew = false, 
-    onSave, 
+    onSave,
+    onUpdateCustomer,
     onBack 
 }) => {
     // Check if we are currently processing. If so, default to Edit mode so user sees progress.
@@ -34,6 +38,11 @@ export const VisitRecordDetail: React.FC<Props> = ({
     
     // AI Processing States
     const [loadingPlan, setLoadingPlan] = useState(false); 
+    
+    // Persona Extraction State
+    const [isExtractingPersona, setIsExtractingPersona] = useState(false);
+    const [extractedData, setExtractedData] = useState<Partial<PersonaData> | null>(null);
+    const [extractionSuccess, setExtractionSuccess] = useState(false);
     
     // Local state for speaker mapping logic
     const [localSpeakerMapping, setLocalSpeakerMapping] = useState<Record<string, string>>(initialRecord.speakerMapping || {});
@@ -71,13 +80,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
         } else {
             setEditingRecord({ ...initialRecord });
             setIsEditing(false);
-            // We do not reset AI status here to allow background processing to continue logically,
-            // but effectively cancelling edit reverts UI. 
-            // If user wants to stop AI, they should likely use a specific "Cancel" in the form or we reset here:
-            if (isAiProcessing) {
-                 // Optional: Cancel AI status if user forces cancel?
-                 // For now, let's keep it consistent with "Revert changes".
-            }
         }
     };
 
@@ -126,6 +128,59 @@ export const VisitRecordDetail: React.FC<Props> = ({
         setEditingRecord(updatedRecord);
     };
 
+    // --- Persona Extraction Logic ---
+    const handleScanForPersona = async () => {
+        setIsExtractingPersona(true);
+        setExtractedData(null);
+        setExtractionSuccess(false);
+        try {
+            // Combine summary and transcript for full context
+            const fullText = `Title: ${editingRecord.title}\nSummary: ${editingRecord.content}\nTranscript: ${editingRecord.transcript}`;
+            
+            // Pass current persona for delta update awareness
+            const updates = await extractPersonaData(fullText, customer.persona);
+            
+            // Check if anything meaningful was found
+            const hasUpdates = Object.keys(updates).length > 0 && (
+                (updates.decisionMakers && updates.decisionMakers.length > 0) ||
+                (updates.keyPainPoints && updates.keyPainPoints.length > 0) ||
+                (updates.competitors && updates.competitors.length > 0) ||
+                updates.budget || 
+                updates.projectTimeline ||
+                updates.projectBackground
+            );
+
+            if (hasUpdates) {
+                setExtractedData(updates);
+            } else {
+                alert("AI 未在本次记录中发现新的画像信息。");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("扫描失败");
+        } finally {
+            setIsExtractingPersona(false);
+        }
+    };
+
+    const handleAdoptUpdates = () => {
+        if (!extractedData || !onUpdateCustomer) return;
+
+        const sourceLabel = `Visit: ${editingRecord.date}`;
+
+        // Enhanced merge logic handles arrays internally
+        const updatedPersona = mergePersonaWithMetadata(customer.persona, extractedData, sourceLabel);
+
+        onUpdateCustomer({
+            ...customer,
+            persona: updatedPersona
+        });
+
+        setExtractedData(null);
+        setExtractionSuccess(true);
+        setTimeout(() => setExtractionSuccess(false), 3000);
+    };
+
     // --- Media Handlers ---
     
     // Step 1: Upload & Transcribe
@@ -133,7 +188,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
         const file = event.target.files?.[0];
         if (!file) return;
 
-        // Persist "Transcribing" state immediately
         const processingRecord: Partial<VisitRecord> = {
             ...editingRecord,
             aiStatus: 'transcribing'
@@ -143,8 +197,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
 
         try {
             const audioUrl = URL.createObjectURL(file);
-            
-            // Convert to Base64
             const base64Data = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
@@ -152,10 +204,8 @@ export const VisitRecordDetail: React.FC<Props> = ({
                 reader.onerror = reject;
             });
 
-            // Call API Step 1: Transcribe Only
             const transcript = await generateMeetingTranscript(base64Data, file.type);
             
-            // Update to "Reviewing" state and Persist
             const reviewedRecord: Partial<VisitRecord> = {
                 ...processingRecord,
                 audioUrl: audioUrl,
@@ -168,7 +218,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
         } catch (error) {
             console.error(error);
             alert("音频处理失败");
-            // Revert state
             const failedRecord: Partial<VisitRecord> = { ...editingRecord, aiStatus: 'idle' };
             setEditingRecord(failedRecord);
             onSave(failedRecord as VisitRecord);
@@ -181,7 +230,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
     const handleAnalyzeTranscript = async () => {
         if (!editingRecord.transcript) return;
         
-        // Persist "Analyzing" state
         const analyzingRecord: Partial<VisitRecord> = {
             ...editingRecord,
             aiStatus: 'analyzing_insights'
@@ -192,7 +240,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
         try {
             const insights = await generateMeetingInsights(editingRecord.transcript);
             
-            // Update to "Completed" and Persist
             const completedRecord: Partial<VisitRecord> = {
                 ...analyzingRecord,
                 title: analyzingRecord?.title ? analyzingRecord.title : insights.title,
@@ -208,7 +255,6 @@ export const VisitRecordDetail: React.FC<Props> = ({
         } catch (e) {
             console.error(e);
             alert("分析失败，请重试");
-            // Revert to review state
             const retryRecord: Partial<VisitRecord> = { ...editingRecord, aiStatus: 'reviewing_transcript' };
             setEditingRecord(retryRecord);
             onSave(retryRecord as VisitRecord);
@@ -234,6 +280,11 @@ export const VisitRecordDetail: React.FC<Props> = ({
         newImages.splice(index, 1);
         setEditingRecord(prev => ({ ...prev, images: newImages }));
     };
+
+    const TAB_ITEMS = [
+        { id: 'summary', label: '纪要与行动', icon: FileText },
+        { id: 'transcript', label: 'AI 逐字稿', icon: BrainCircuit },
+    ];
 
     return (
         <div className="h-full flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right-4 duration-300">
@@ -397,69 +448,198 @@ export const VisitRecordDetail: React.FC<Props> = ({
                                     <>
                                         {/* Tabs */}
                                         {editingRecord.transcript && (
-                                            <div className="flex border-b border-slate-200 bg-white sticky top-0 z-10">
-                                                <button 
-                                                    onClick={() => setActiveTab('summary')}
-                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'summary' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                                                >
-                                                    <FileText className="w-4 h-4" /> 纪要与行动
-                                                </button>
-                                                <button 
-                                                    onClick={() => setActiveTab('transcript')}
-                                                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'transcript' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                                                >
-                                                    <BrainCircuit className="w-4 h-4" /> AI 逐字稿
-                                                </button>
+                                            <div className="sticky top-0 z-10">
+                                                <Tabs 
+                                                    items={TAB_ITEMS}
+                                                    activeId={activeTab}
+                                                    onChange={(id) => setActiveTab(id as any)}
+                                                    className="bg-white border-b border-slate-200 px-6 pt-2"
+                                                />
                                             </div>
                                         )}
 
                                         {activeTab === 'summary' && (
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in">
+                                            <div className="space-y-6 animate-in fade-in">
                                                 
-                                                {/* Left Column: Summary & Next Steps */}
-                                                <div className="md:col-span-2 space-y-6">
-                                                    {/* Next Steps (Highlighted) */}
-                                                    <div className="bg-white rounded-xl p-6 border-l-4 border-indigo-500 shadow-sm ring-1 ring-slate-200">
-                                                        <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                            <CheckSquare className="w-4 h-4" /> 下一步行动 (Action Items)
-                                                        </h4>
-                                                        <div className="prose prose-sm prose-slate max-w-none text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                                            {editingRecord.nextSteps || "暂无明确下一步计划。"}
-                                                        </div>
-                                                    </div>
+                                                {/* AI Persona Extraction Block */}
+                                                {(editingRecord.transcript || editingRecord.content) && onUpdateCustomer && (
+                                                    <div className="grid grid-cols-1">
+                                                        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h4 className="font-bold text-indigo-900 text-sm flex items-center gap-2">
+                                                                        <Sparkles className="w-4 h-4 text-purple-600" /> AI 智能提取与回写
+                                                                    </h4>
+                                                                    <p className="text-xs text-indigo-700/70 mt-1">
+                                                                        扫描对话内容，自动发现并补齐画像中的新决策人、痛点或竞品信息。
+                                                                    </p>
+                                                                </div>
+                                                                {!extractedData && !extractionSuccess && (
+                                                                    <Button 
+                                                                        size="sm" 
+                                                                        onClick={handleScanForPersona} 
+                                                                        isLoading={isExtractingPersona}
+                                                                        className="bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 shadow-sm"
+                                                                    >
+                                                                        扫描更新
+                                                                    </Button>
+                                                                )}
+                                                                {extractionSuccess && (
+                                                                    <Badge variant="success" className="px-3 py-1.5 flex items-center gap-1">
+                                                                        <CheckSquare className="w-3.5 h-3.5" /> 画像已更新
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
 
-                                                    {/* Content Summary */}
-                                                    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                                                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                                            <FileText className="w-4 h-4" /> 核心发现
-                                                        </h4>
-                                                        <div className="prose prose-slate max-w-none text-slate-700 leading-7 whitespace-pre-wrap">
-                                                            {editingRecord.content || <span className="text-slate-400 italic">暂无详细内容...</span>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Right Column: Audio & Attachments */}
-                                                <div className="space-y-6">
-                                                    {editingRecord.audioUrl && (
-                                                        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-                                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">录音回放</div>
-                                                            <audio src={editingRecord.audioUrl} controls className="w-full h-8" />
-                                                        </div>
-                                                    )}
-                                                    
-                                                    {editingRecord.images && editingRecord.images.length > 0 && (
-                                                        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-                                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">图片附件 ({editingRecord.images.length})</div>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                {editingRecord.images.map((img, idx) => (
-                                                                    <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50 cursor-zoom-in">
-                                                                        <img src={img} alt="attachment" className="w-full h-full object-cover" />
+                                                            {/* Result Preview Area */}
+                                                            {extractedData && (
+                                                                <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm space-y-4 animate-in slide-in-from-top-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wide">发现新情报：</h5>
                                                                     </div>
-                                                                ))}
+                                                                    
+                                                                    <div className="space-y-3">
+                                                                        {/* 1. Stakeholders */}
+                                                                        {extractedData.decisionMakers && extractedData.decisionMakers.length > 0 && (
+                                                                            <div className="flex flex-col gap-1 text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                                                <div className="flex items-center gap-2 font-medium">
+                                                                                    <UserPlus className="w-4 h-4 text-indigo-500" />
+                                                                                    <span>发现 {extractedData.decisionMakers.length} 位新决策人:</span>
+                                                                                </div>
+                                                                                <ul className="pl-6 list-disc space-y-1 mt-1">
+                                                                                    {extractedData.decisionMakers.map((dm, idx) => (
+                                                                                        <li key={idx} className="text-xs text-slate-600">
+                                                                                            <span className="font-bold text-slate-700">{dm.name}</span>
+                                                                                            {dm.title && <span className="mx-1 text-slate-400">|</span>}
+                                                                                            {dm.title}
+                                                                                            {dm.role && <span className="ml-1 text-indigo-500 bg-indigo-50 px-1 rounded">({dm.role})</span>}
+                                                                                        </li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* 2. Pain Points */}
+                                                                        {extractedData.keyPainPoints && extractedData.keyPainPoints.length > 0 && (
+                                                                            <div className="flex flex-col gap-1 text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                                                <div className="flex items-center gap-2 font-medium">
+                                                                                    <AlertCircle className="w-4 h-4 text-red-500" />
+                                                                                    <span>识别出 {extractedData.keyPainPoints.length} 个新痛点:</span>
+                                                                                </div>
+                                                                                <ul className="pl-6 list-disc space-y-1 mt-1">
+                                                                                    {(extractedData.keyPainPoints as unknown as string[]).map((pp, idx) => (
+                                                                                        <li key={idx} className="text-xs text-slate-600 leading-relaxed">
+                                                                                            {pp}
+                                                                                        </li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* 3. Competitors */}
+                                                                        {extractedData.competitors && extractedData.competitors.length > 0 && (
+                                                                            <div className="flex flex-col gap-1 text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                                                <div className="flex items-center gap-2 font-medium">
+                                                                                    <Swords className="w-4 h-4 text-orange-500" />
+                                                                                    <span>发现新竞品:</span>
+                                                                                </div>
+                                                                                <ul className="pl-6 list-disc space-y-1 mt-1">
+                                                                                    {extractedData.competitors.map((comp, idx) => (
+                                                                                        <li key={idx} className="text-xs text-slate-600">{comp}</li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* 4. Other Fields */}
+                                                                        {(extractedData.budget || extractedData.projectTimeline || extractedData.projectBackground) && (
+                                                                             <div className="flex flex-col gap-1 text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                                                <div className="flex items-center gap-2 font-medium">
+                                                                                    <FileText className="w-4 h-4 text-blue-500" />
+                                                                                    <span>画像关键字段更新:</span>
+                                                                                </div>
+                                                                                <ul className="pl-6 list-disc space-y-1 mt-1 text-xs text-slate-600">
+                                                                                    {extractedData.budget && <li><span className="font-semibold">预算:</span> {extractedData.budget}</li>}
+                                                                                    {extractedData.projectTimeline && <li><span className="font-semibold">时间表:</span> {extractedData.projectTimeline}</li>}
+                                                                                    {extractedData.projectBackground && <li><span className="font-semibold">项目背景:</span> 更新了项目背景描述</li>}
+                                                                                </ul>
+                                                                            </div>
+                                                                        )}
+                                                                        
+                                                                        {/* Fallback if no specific arrays but object exists */}
+                                                                        {Object.keys(extractedData).length > 0 && 
+                                                                         !extractedData.keyPainPoints?.length && 
+                                                                         !extractedData.decisionMakers?.length &&
+                                                                         !extractedData.competitors?.length &&
+                                                                         !extractedData.budget && !extractedData.projectTimeline && !extractedData.projectBackground &&
+                                                                         (
+                                                                            <div className="text-xs text-slate-500 italic">发现部分画像字段更新</div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex justify-end pt-2">
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            variant="gradient"
+                                                                            onClick={handleAdoptUpdates}
+                                                                            className="text-xs h-8"
+                                                                            icon={ArrowDown}
+                                                                        >
+                                                                            一键采纳并更新画像
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    {/* Left Column: Summary & Next Steps */}
+                                                    <div className="md:col-span-2 space-y-6">
+                                                        {/* Next Steps (Highlighted) */}
+                                                        <div className="bg-white rounded-xl p-6 border-l-4 border-indigo-500 shadow-sm ring-1 ring-slate-200">
+                                                            <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                <CheckSquare className="w-4 h-4" /> 下一步行动 (Action Items)
+                                                            </h4>
+                                                            <div className="prose prose-sm prose-slate max-w-none text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                                                {editingRecord.nextSteps || "暂无明确下一步计划。"}
                                                             </div>
                                                         </div>
-                                                    )}
+
+                                                        {/* Content Summary */}
+                                                        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                                                            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                                <FileText className="w-4 h-4" /> 核心发现
+                                                            </h4>
+                                                            <div className="prose prose-slate max-w-none text-slate-700 leading-7 whitespace-pre-wrap">
+                                                                {editingRecord.content || <span className="text-slate-400 italic">暂无详细内容...</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Right Column: Audio & Attachments */}
+                                                    <div className="space-y-6">
+                                                        {editingRecord.audioUrl && (
+                                                            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                                                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">录音回放</div>
+                                                                <audio src={editingRecord.audioUrl} controls className="w-full h-8" />
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {editingRecord.images && editingRecord.images.length > 0 && (
+                                                            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                                                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">图片附件 ({editingRecord.images.length})</div>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    {editingRecord.images.map((img, idx) => (
+                                                                        <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50 cursor-zoom-in">
+                                                                            <img src={img} alt="attachment" className="w-full h-full object-cover" />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}

@@ -229,3 +229,26 @@ export const getVisitPlanPrompt = (customer: Customer, goal: string, stakeholder
 
 请确保问题具有攻击性但礼貌，能够填补画像中的未知信息。
 `;
+
+/**
+ * 12. 竞品狙击卡生成提示词 (NEW)
+ */
+export const getCompetitorBattleCardPrompt = (competitorName: string, customer: Customer) => `
+你是一名擅长竞争性销售(Competitive Selling)的专家。请为销售代表生成一份针对竞品 "${competitorName}" 的狙击卡 (Battle Card)。
+
+客户背景:
+- 名称: ${customer.name}
+- 行业: ${customer.persona.industry}
+- 痛点: ${customer.persona.keyPainPoints?.map(p => p.description).join(', ')}
+
+请以 JSON 格式返回以下内容 (BattleCardData)：
+1. competitor_strength: 竞品最大的优势或客户通常喜欢的点 (客观承认)。
+2. competitor_weakness: 竞品在当前行业或场景下的主要弱点/劣势。
+3. our_kill_points: 一个字符串数组，包含 3 个针对性的反击话术/优势卖点 (Kill Points)。这些话术应该直接针对竞品的弱点。
+4. trap_question: 一个“挖坑问题” (Trap Question)。销售可以问客户这个问题，从而引导客户自己意识到竞品的问题。
+
+回答要求：
+- 语言：中文。
+- 风格：犀利、直接、专业。
+- 必须基于 "${customer.persona.industry}" 行业的通识进行分析。
+`;

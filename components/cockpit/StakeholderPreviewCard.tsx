@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
 import { ViewState, Stakeholder } from '../../types';
+import { getStanceColor, getRoleLabel } from '../../utils/formatters';
 
 interface Props {
     stakeholders: Stakeholder[];
@@ -13,29 +14,6 @@ interface Props {
 
 export const StakeholderPreviewCard: React.FC<Props> = ({ stakeholders, onChangeView, onSelect }) => {
     
-    const getStanceColor = (stance: string) => {
-        switch(stance) {
-            case 'Champion': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-            case 'Positive': return 'bg-green-50 text-green-600 border-green-200';
-            case 'Negative': return 'bg-red-50 text-red-600 border-red-200';
-            case 'Blocker': return 'bg-red-100 text-red-700 border-red-300';
-            default: return 'bg-slate-50 text-slate-500 border-slate-200';
-        }
-    };
-
-    const getRoleLabel = (role: string) => {
-        switch (role) {
-            case 'Economic Buyer': return '经济决策人';
-            case 'Technical Buyer': return '技术把关人';
-            case 'User Buyer': return '最终用户';
-            case 'Coach': return '内线教练';
-            case 'Gatekeeper': return '把关人';
-            case 'Influencer': return '影响者';
-            case 'Unknown': return '未知';
-            default: return role;
-        }
-    };
-
     return (
         <Card className="p-5">
             <div className="flex items-center justify-between mb-4">

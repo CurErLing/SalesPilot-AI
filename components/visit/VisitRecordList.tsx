@@ -1,9 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { VisitRecord, Customer } from '../../types';
-import { Phone, Mail, MessageSquare, Briefcase, Calendar, Mic, Image as ImageIcon, Target, ArrowRight, Clock, Search, Filter, X } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Briefcase, Calendar, Mic, Image as ImageIcon, Target, ArrowRight, Clock, Search, X, Filter } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
+import { Avatar } from '../ui/Avatar';
 import { Plus } from 'lucide-react';
 
 interface Props {
@@ -35,18 +37,16 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
             // Type Filter
             if (typeFilter !== 'ALL' && v.type !== typeFilter) return false;
             
-            // Sentiment Filter (Normally applies to completed, but checking prop is safe)
+            // Sentiment Filter
             if (sentimentFilter !== 'ALL' && v.sentiment !== sentimentFilter) return false;
 
             return true;
         });
     }, [visits, searchQuery, typeFilter, sentimentFilter]);
 
-    // Split based on filtered list
     const plannedVisits = filteredVisits.filter(v => v.status === 'Planned');
     const completedVisits = filteredVisits.filter(v => v.status !== 'Planned');
 
-    // --- Helpers ---
     const getIcon = (type: string) => {
         switch (type) {
             case 'Call': return Phone;
@@ -81,7 +81,6 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
 
             {/* Filter Toolbar */}
             <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3">
-                {/* Search */}
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input 
@@ -101,7 +100,6 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                     )}
                 </div>
                 
-                {/* Filters */}
                 <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
                      <select 
                         className="bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
@@ -147,7 +145,6 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                                     onClick={() => onSelect(visit)}
                                     className="group bg-white rounded-xl border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer relative overflow-hidden flex flex-col"
                                 >
-                                    {/* Left Accent Bar */}
                                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-500 group-hover:bg-indigo-600 transition-colors"></div>
                                     
                                     <div className="p-5 flex flex-col h-full">
@@ -163,7 +160,6 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                                             {visit.title || '未命名拜访'}
                                         </h4>
                                         
-                                        {/* Goal Preview */}
                                         <div className="mb-4 flex-1">
                                             {visit.visitGoal ? (
                                                 <p className="text-sm text-slate-600 line-clamp-2">
@@ -175,16 +171,13 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                                             )}
                                         </div>
 
-                                        {/* Footer: Stakeholders & Action */}
                                         <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
                                             <div className="flex -space-x-2">
                                                 {visit.stakeholderIds?.slice(0, 4).map(id => {
                                                      const person = customer.persona.decisionMakers.find(dm => dm.id === id);
                                                      if (!person) return null;
                                                      return (
-                                                        <div key={id} className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-sm" title={person.name}>
-                                                            {person.name.charAt(0)}
-                                                        </div>
+                                                        <Avatar key={id} name={person.name} size="xs" className="border-slate-200 w-7 h-7 text-[10px]" />
                                                      );
                                                 })}
                                                 {(!visit.stakeholderIds || visit.stakeholderIds.length === 0) && (
@@ -212,13 +205,15 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                     </div>
 
                     {completedVisits.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400">
-                             <Filter className="w-8 h-8 mb-2 opacity-50" />
-                             <p className="text-sm">未找到匹配的互动记录</p>
+                        <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8">
+                            <EmptyState 
+                                icon={Filter}
+                                title="未找到匹配的互动记录"
+                                description="请尝试调整筛选条件，或者创建一个新的拜访记录。"
+                            />
                         </div>
                     ) : (
                         <div className="relative pl-4 space-y-8">
-                            {/* Vertical Line */}
                             <div className="absolute left-[27px] top-2 bottom-4 w-0.5 bg-slate-200"></div>
 
                             {completedVisits.map((visit) => {
@@ -228,19 +223,16 @@ export const VisitRecordList: React.FC<Props> = ({ visits, onSelect, onAdd, cust
                                 return (
                                     <div key={visit.id} onClick={() => onSelect(visit)} className="relative pl-20 group cursor-pointer">
                                         
-                                        {/* Timeline Node */}
                                         <div className={`absolute left-0 top-0 w-14 h-14 rounded-full border-4 border-slate-50 bg-white shadow-sm flex items-center justify-center z-10 transition-colors group-hover:border-indigo-100`}>
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${visit.type === 'Meeting' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'} group-hover:bg-indigo-600 group-hover:text-white transition-colors`}>
                                                 <Icon className="w-5 h-5" />
                                             </div>
                                         </div>
 
-                                        {/* Date Label (Floating left or top) */}
                                         <div className="mb-1 pl-1">
                                             <span className="text-xs font-bold text-slate-400">{visit.date}</span>
                                         </div>
 
-                                        {/* Content Card */}
                                         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
                                             <div className="flex justify-between items-start mb-2">
                                                 <h3 className="font-bold text-slate-800 text-base group-hover:text-indigo-600 transition-colors">{visit.title}</h3>

@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Stakeholder, Customer } from '../../types'; // Added Customer type import if needed context, though simple list works
+import { Stakeholder, Customer } from '../../types';
 import { Trash2, Mail, GitFork } from 'lucide-react';
+import { getStanceColor, getStanceLabel } from '../../utils/formatters';
 
 interface Props {
     isOpen: boolean;
@@ -23,27 +24,6 @@ export const StakeholderEditModal: React.FC<Props> = ({ isOpen, onClose, onSave,
             setData(initialData || {});
         }
     }, [isOpen, initialData]);
-
-    const getStanceColor = (stance: string) => {
-        switch(stance) {
-            case 'Champion': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-            case 'Positive': return 'bg-green-50 text-green-600 border-green-200';
-            case 'Negative': return 'bg-red-50 text-red-600 border-red-200';
-            case 'Blocker': return 'bg-red-100 text-red-700 border-red-300';
-            default: return 'bg-slate-100 text-slate-600 border-slate-200';
-        }
-    };
-
-    const getStanceLabel = (s: string) => {
-        switch(s) {
-            case 'Champion': return '🔥 核心支持者';
-            case 'Positive': return '🙂 态度积极';
-            case 'Neutral': return '😐 中立';
-            case 'Negative': return '😟 态度消极';
-            case 'Blocker': return '⛔ 反对者';
-            default: return s;
-        }
-    };
 
     // Filter out self to avoid circular reference in dropdown (basic level)
     const potentialManagers = useMemo(() => {

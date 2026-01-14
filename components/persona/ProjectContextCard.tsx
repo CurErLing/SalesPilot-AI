@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Building2, Sparkles, Loader2, Wallet, Clock, Map, Target, FileText, ChevronDown } from 'lucide-react';
+import { Building2, Sparkles, Loader2, Wallet, Clock, Map, Target, FileText, ChevronDown, Info } from 'lucide-react';
 import { Card, CardTitle, CardDescription } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { enrichFirmographics } from '../../services/geminiService';
+import { FieldMetadata } from '../../types';
 
 interface Props {
     // Project Data
@@ -21,6 +22,9 @@ interface Props {
     budget: string;
     projectTimeline: string;
     
+    // Metadata
+    metadata?: Record<string, FieldMetadata>;
+
     // Actions
     onChange: (field: any, value: string) => void;
     onStatusChange: (status: any) => void;
@@ -38,6 +42,7 @@ export const ProjectContextCard: React.FC<Props> = ({
     budget, 
     projectTimeline, 
     companyName, 
+    metadata,
     onChange,
     onStatusChange
 }) => {
@@ -56,6 +61,9 @@ export const ProjectContextCard: React.FC<Props> = ({
             setLoading(false);
         }
     };
+
+    // Helper to check recent update for textarea
+    const isBackgroundNew = metadata?.['projectBackground'] && (Date.now() - metadata['projectBackground'].timestamp < 60000);
 
     return (
         <Card className="p-0 overflow-hidden border-slate-200 shadow-md">
@@ -93,9 +101,10 @@ export const ProjectContextCard: React.FC<Props> = ({
                 {/* 1. Key Metrics Row (Budget, Time, Stage) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                      {/* Budget */}
-                     <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 flex flex-col justify-between h-full group hover:border-emerald-200 transition-colors">
-                        <label className="text-xs font-bold text-emerald-600 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                            <Wallet className="w-4 h-4" /> 预算规划
+                     <div className={`bg-emerald-50/50 rounded-xl p-4 border flex flex-col justify-between h-full group hover:border-emerald-200 transition-colors ${metadata?.['budget'] && (Date.now() - metadata['budget'].timestamp < 60000) ? 'border-emerald-400 ring-2 ring-emerald-500/10' : 'border-emerald-100'}`}>
+                        <label className="text-xs font-bold text-emerald-600 uppercase tracking-wide flex items-center justify-between gap-1.5 mb-2">
+                            <div className="flex items-center gap-1.5"><Wallet className="w-4 h-4" /> 预算规划</div>
+                            {metadata?.['budget'] && <span title={`来源: ${metadata['budget'].source}`}><Info className="w-3 h-3 text-emerald-400" /></span>}
                         </label>
                         <input
                             type="text"
@@ -107,9 +116,10 @@ export const ProjectContextCard: React.FC<Props> = ({
                      </div>
 
                      {/* Timeline */}
-                     <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex flex-col justify-between h-full group hover:border-blue-200 transition-colors">
-                        <label className="text-xs font-bold text-blue-600 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                            <Clock className="w-4 h-4" /> 预计上线
+                     <div className={`bg-blue-50/50 rounded-xl p-4 border flex flex-col justify-between h-full group hover:border-blue-200 transition-colors ${metadata?.['projectTimeline'] && (Date.now() - metadata['projectTimeline'].timestamp < 60000) ? 'border-blue-400 ring-2 ring-blue-500/10' : 'border-blue-100'}`}>
+                        <label className="text-xs font-bold text-blue-600 uppercase tracking-wide flex items-center justify-between gap-1.5 mb-2">
+                            <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> 预计上线</div>
+                            {metadata?.['projectTimeline'] && <span title={`来源: ${metadata['projectTimeline'].source}`}><Info className="w-3 h-3 text-blue-400" /></span>}
                         </label>
                         <input
                             type="text"
@@ -140,24 +150,37 @@ export const ProjectContextCard: React.FC<Props> = ({
 
                 {/* 2. Deep Context Area (Background & Scenario) */}
                 <div className="space-y-4">
-                    <div>
-                        <label className="text-sm font-bold text-slate-700 mb-2 block flex items-center gap-2">
-                            项目背景与核心需求
-                            <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">AI 自动提取重点</span>
-                        </label>
+                    <div className="relative">
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-bold text-slate-700 block flex items-center gap-2">
+                                项目背景与核心需求
+                                <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">AI 自动提取重点</span>
+                            </label>
+                            {metadata?.['projectBackground'] && (
+                                <span className={`text-[10px] flex items-center gap-1 ${isBackgroundNew ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                                    {isBackgroundNew && <Sparkles className="w-3 h-3 animate-pulse" />}
+                                    来源: {metadata['projectBackground'].source}
+                                </span>
+                            )}
+                        </div>
                         <textarea
                             value={projectBackground || ''}
                             onChange={(e) => onChange('projectBackground', e.target.value)}
-                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm leading-relaxed text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none shadow-inner"
+                            className={`w-full p-4 bg-slate-50 border rounded-xl text-sm leading-relaxed text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none shadow-inner ${isBackgroundNew ? 'border-emerald-400 bg-emerald-50/10' : 'border-slate-200'}`}
                             rows={4}
                             placeholder="描述项目的发起缘由、业务痛点及核心建设目标。例如：由于现有系统无法支撑双11流量，急需进行微服务架构升级..."
                         />
                     </div>
 
-                    <div>
-                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block flex items-center gap-1">
-                            <Map className="w-3.5 h-3.5" /> 具体业务场景 (Scenario)
-                        </label>
+                    <div className="relative">
+                         <div className="flex justify-between items-center mb-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block flex items-center gap-1">
+                                <Map className="w-3.5 h-3.5" /> 具体业务场景 (Scenario)
+                            </label>
+                            {metadata?.['scenario'] && (
+                                <span className="text-[10px] text-slate-400">来源: {metadata['scenario'].source}</span>
+                            )}
+                         </div>
                         <input
                             type="text"
                             value={scenario || ''}
@@ -173,7 +196,10 @@ export const ProjectContextCard: React.FC<Props> = ({
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">客户基本面</h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-semibold text-slate-500 mb-1.5 block">所属行业</label>
+                            <div className="flex justify-between mb-1.5">
+                                <label className="text-xs font-semibold text-slate-500 block">所属行业</label>
+                                {metadata?.['industry'] && <span title={`来源: ${metadata['industry'].source}`}><Info className="w-3 h-3 text-slate-300" /></span>}
+                            </div>
                             <input
                                 type="text"
                                 value={industry}
@@ -183,7 +209,10 @@ export const ProjectContextCard: React.FC<Props> = ({
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-semibold text-slate-500 mb-1.5 block">人员规模</label>
+                            <div className="flex justify-between mb-1.5">
+                                <label className="text-xs font-semibold text-slate-500 block">人员规模</label>
+                                {metadata?.['companySize'] && <span title={`来源: ${metadata['companySize'].source}`}><Info className="w-3 h-3 text-slate-300" /></span>}
+                            </div>
                             <input
                                 type="text"
                                 value={companySize}

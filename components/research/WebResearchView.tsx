@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Customer, ResearchNote, PersonaData } from '../../types';
+import { Customer, ResearchNote, PersonaData, PainPoint } from '../../types';
 import { performWebResearch, extractPersonaData, generateIceBreaker } from '../../services/geminiService';
+import { mergePersonaWithMetadata } from '../../utils/personaHelper';
 import { Search, Globe, Check } from 'lucide-react';
 import { Button } from '../ui/Button';
 
@@ -91,17 +92,10 @@ const WebResearchView: React.FC<Props> = ({ customer, onUpdate, initialQuery }) 
       try {
           const extracted = await extractPersonaData(note.content);
           
-          const updatedPersona: PersonaData = {
-            ...customer.persona,
-            industry: extracted.industry || customer.persona.industry,
-            companySize: extracted.companySize || customer.persona.companySize,
-            budget: extracted.budget || customer.persona.budget,
-            projectTimeline: extracted.projectTimeline || customer.persona.projectTimeline,
-            currentSolution: extracted.currentSolution || customer.persona.currentSolution,
-            keyPainPoints: extracted.keyPainPoints?.length ? [...new Set([...(customer.persona.keyPainPoints || []), ...extracted.keyPainPoints])] : customer.persona.keyPainPoints,
-            decisionMakers: extracted.decisionMakers?.length ? [...new Set([...(customer.persona.decisionMakers || []), ...extracted.decisionMakers])] : customer.persona.decisionMakers,
-            competitors: extracted.competitors?.length ? [...new Set([...(customer.persona.competitors || []), ...extracted.competitors])] : customer.persona.competitors,
-          };
+          const sourceLabel = `Research: ${note.title.substring(0, 15)}...`;
+
+          // Use enhanced helper to merge both simple fields and arrays (PainPoints, Competitors, DMs)
+          const updatedPersona = mergePersonaWithMetadata(customer.persona, extracted, sourceLabel);
 
           onUpdate({ ...customer, persona: updatedPersona });
           setActionSuccessMsg("已提取并更新画像");

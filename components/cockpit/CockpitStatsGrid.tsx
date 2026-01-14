@@ -3,6 +3,7 @@ import React from 'react';
 import { TrendingUp, Clock, Target, Activity } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Customer } from '../../types';
+import { getScoreColor } from '../../utils/formatters';
 
 interface Props {
     customer: Customer;
@@ -11,13 +12,6 @@ interface Props {
 
 export const CockpitStatsGrid: React.FC<Props> = ({ customer, daysSinceContact }) => {
     
-    const getScoreColor = (score?: number) => {
-        if (!score) return 'text-slate-400';
-        if (score >= 80) return 'text-emerald-500';
-        if (score >= 60) return 'text-amber-500';
-        return 'text-red-500';
-    };
-
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* Win Probability */}

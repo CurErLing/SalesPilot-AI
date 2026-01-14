@@ -6,6 +6,7 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { Avatar } from './ui/Avatar';
 import { UserCircle, Mail, Phone, Edit2, Calendar, MessageSquare, Briefcase, FileText } from 'lucide-react';
+import { getRoleLabel } from '../utils/formatters';
 
 interface Props {
   isOpen: boolean;
@@ -50,19 +51,6 @@ export const StakeholderProfileModal: React.FC<Props> = ({
         case 'Blocker': return <Badge className="bg-red-100 text-red-700 border-red-200">⛔ 反对者 (Blocker)</Badge>;
         default: return null;
     }
-  };
-
-  const getRoleLabel = (role: string) => {
-    const map: Record<string, string> = {
-        'Economic Buyer': '经济决策人 (EB) - 钱袋子',
-        'Technical Buyer': '技术把关人 (TB) - 守门员',
-        'User Buyer': '最终用户 (UB) - 使用者',
-        'Coach': '内线教练 (Coach)',
-        'Gatekeeper': '助理/秘书',
-        'Influencer': '影响者',
-        'Unknown': '角色未知'
-    };
-    return map[role] || role;
   };
 
   return (

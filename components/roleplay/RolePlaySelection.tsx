@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Customer, Stakeholder } from '../../types';
-import { Swords } from 'lucide-react';
+import { Swords, UserPlus } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { EmptyState } from '../ui/EmptyState';
 
 interface Props {
   customer: Customer;
@@ -46,8 +47,12 @@ export const RolePlaySelection: React.FC<Props> = ({ customer, onSelect }) => {
                 </Card>
               ))
             ) : (
-              <div className="col-span-2 text-center p-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
-                 请先在“全景画像”中添加决策人
+              <div className="col-span-2 bg-slate-50 border border-dashed border-slate-200 rounded-xl py-10">
+                 <EmptyState 
+                    icon={UserPlus}
+                    title="暂无决策人"
+                    description="请先在“全景画像”中添加决策人，才能开始演练。"
+                 />
               </div>
             )}
          </div>

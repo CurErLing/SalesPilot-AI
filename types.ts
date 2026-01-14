@@ -1,5 +1,4 @@
 
-
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   PROJECT_COCKPIT = 'PROJECT_COCKPIT',
@@ -21,7 +20,30 @@ export interface Stakeholder {
   stance: 'Champion' | 'Positive' | 'Neutral' | 'Negative' | 'Blocker';
   contact?: string;
   notes?: string;
-  reportsTo?: string; // New: ID of the manager
+  reportsTo?: string; // ID of the manager
+}
+
+// New: Political Relationships
+export interface Relationship {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: 'Influence' | 'Conflict';
+  note?: string;
+}
+
+// New Interface for structured Pain Points
+export interface PainPoint {
+  id: string;
+  description: string;
+  createdAt: string; // ISO Date String YYYY-MM-DD
+  source?: string;   // e.g. "Meeting", "Manual"
+  isSolved?: boolean;
+}
+
+export interface FieldMetadata {
+  source: string;
+  timestamp: number;
 }
 
 export interface PersonaData {
@@ -32,18 +54,22 @@ export interface PersonaData {
 
   // Project Domain
   projectBackground?: string; // NEW: 项目背景与核心需求
-  keyPainPoints: string[];
+  keyPainPoints: PainPoint[]; // CHANGED: From string[] to PainPoint[]
   customerExpectations?: string; // NEW: 客户预期
   budget: string;
   projectTimeline: string;
   decisionMakers: Stakeholder[];
+  relationships?: Relationship[]; // NEW: Political Map
 
   // Product Domain / Competitive Landscape
   currentSolution: string;
   competitors: string[];
   
   // Strategy
-  painPointPitches?: Record<string, string>;
+  painPointPitches?: Record<string, string>; // Key is PainPoint.description
+
+  // Metadata for lineage
+  _metadata?: Record<string, FieldMetadata>;
 }
 
 export interface VisitRecord {
@@ -96,6 +122,13 @@ export interface AssessmentResult {
     }[];
 }
 
+export interface AssessmentHistoryItem {
+  date: string;
+  score: number;
+  deal_health: 'Healthy' | 'At Risk' | 'Critical';
+  main_gap?: string; // First gap found, to explain why score is low
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -105,7 +138,8 @@ export interface Customer {
   lastContact: string;
   persona: PersonaData;
   assessmentScore?: number;
-  assessmentResult?: AssessmentResult; // NEW: Persist the full result
+  assessmentResult?: AssessmentResult; 
+  assessmentHistory?: AssessmentHistoryItem[]; // NEW: History
   notes: string;
   visits: VisitRecord[];
   researchNotes: ResearchNote[];
