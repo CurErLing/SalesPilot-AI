@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { Customer, AssessmentResult, AssessmentHistoryItem, ViewState } from '../types';
+import { Customer, AssessmentResult, AssessmentHistoryItem } from '../types';
 import { generateAssessment } from '../services/geminiService';
-import { AlertTriangle, CheckCircle2, Sparkles, AlertCircle, HelpCircle, Activity, Target, RefreshCw, History, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Sparkles, AlertCircle, HelpCircle, Activity, Target, RefreshCw, History } from 'lucide-react';
 import { Button } from './ui/Button';
 import { ThinkingState } from './ui/ThinkingState'; 
 import { ScoreGauge } from './ui/ScoreGauge';
@@ -12,10 +12,9 @@ import { getHealthColor, getHealthLabel } from '../utils/formatters';
 interface Props {
   customer: Customer;
   onUpdate: (customer: Customer) => void;
-  onChangeView?: (view: ViewState) => void;
 }
 
-const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) => {
+const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AssessmentResult | null>(customer.assessmentResult || null);
 
@@ -31,6 +30,7 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
         
         setData(typedResult);
 
+        // Create History Entry
         const mainGap = typedResult.categories.find(c => c.status === 'Gap')?.missing?.[0];
         const newHistoryItem: AssessmentHistoryItem = {
             date: new Date().toISOString().split('T')[0],
@@ -54,7 +54,8 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
     }
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  // Custom Chart Tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload as AssessmentHistoryItem;
       return (
@@ -69,7 +70,14 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
                   {d.deal_health}
               </span>
           </div>
-          {d.main_gap && <p className="text-red-600 mt-2 border-t pt-2 max-w-[180px]">{d.main_gap}</p>}
+          {d.main_gap && (
+              <div className="mt-2 pt-2 border-t border-slate-50">
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1 mb-0.5">
+                      <AlertCircle className="w-3 h-3 text-red-400" /> 主要风险:
+                  </p>
+                  <p className="text-red-600 max-w-[180px] leading-snug">{d.main_gap}</p>
+              </div>
+          )}
         </div>
       );
     }
@@ -79,13 +87,13 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
   if (loading) {
     return (
         <ThinkingState 
-            title="AI 正在扫描画像并评估价值..."
+            title="AI 正在进行全维度价值评估..."
             steps={[
-                "分析历史拜访纪要中的关键词...",
-                "比对竞品分析情报...",
-                "计算 MEDDIC 六大维度得分...",
-                "识别关键决策人态度缺失 (Gap)...",
-                "生成下一阶段跟进脚本..."
+                "读取客户全景画像数据...",
+                "分析历史拜访记录与情感倾向...",
+                "比对 MEDDIC 模型六大维度...",
+                "计算赢单概率与健康度...",
+                "生成针对性改进建议 (Coaching Tips)..."
             ]}
         />
     );
@@ -98,9 +106,10 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
                 <Target className="w-12 h-12 text-white" />
             </div>
             <div className="text-center max-w-md">
-                <h2 className="text-2xl font-extrabold text-slate-900 mb-3">赢单确定性评估</h2>
+                <h2 className="text-2xl font-extrabold text-slate-900 mb-3">客户价值评估</h2>
                 <p className="text-slate-500 mb-8 leading-relaxed text-sm">
-                    销售的核心任务是补齐画像。通过 AI 诊断，我们将为您指出当前商机中缺失的关键拼图。
+                    根据客户画像数据，进行自动化评级与筛选。<br/>
+                    AI 将基于 MEDDIC/BANT 模型，识别优质客户，并制定下一步跟进策略。
                 </p>
                 <Button 
                     onClick={handleRunAssessment}
@@ -108,59 +117,108 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
                     className="shadow-lg shadow-indigo-200 px-8"
                     icon={Sparkles}
                 >
-                    立即运行诊断
+                    开始自动化评级
                 </Button>
             </div>
       </div>
     );
   }
 
+  // Determine trend arrow
   const history = customer.assessmentHistory || [];
-  const trend = history.length > 1 ? data.score - history[history.length - 2].score : 0;
+  const previousScore = history.length > 1 ? history[history.length - 2].score : data.score;
+  const trend = data.score - previousScore;
 
+  // Results View
   return (
-    <div className="h-full overflow-y-auto p-1 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 custom-scrollbar">
+    <div className="h-full overflow-y-auto p-1 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
+      {/* Top Section: Split into Current Status & Trend Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
-                <div className={`absolute top-0 left-0 w-2 h-full ${getHealthColor(data.deal_health).split(' ')[1]}`}></div>
+          
+          {/* Left: Current Score Gauge */}
+          <div className="lg:col-span-1 bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+                <div className={`absolute top-0 left-0 w-2 h-full ${getHealthColor(data.deal_health).split(' ')[1].replace('bg-', 'bg-')}`}></div>
+                
                 <div className="relative mb-4">
-                    <ScoreGauge score={data.score} trend={trend} size={140} />
+                    <ScoreGauge score={data.score} trend={trend} size={128} />
                 </div>
+
                 <div className="text-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 border mb-4 ${getHealthColor(data.deal_health)}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 border mb-3 ${getHealthColor(data.deal_health)}`}>
                         <Activity className="w-3.5 h-3.5" />
                         {getHealthLabel(data.deal_health)}
                     </span>
-                    <Button onClick={handleRunAssessment} variant="secondary" size="sm" icon={RefreshCw} className="w-full">重新评估</Button>
+                    <Button 
+                        onClick={handleRunAssessment} 
+                        variant="secondary" 
+                        size="sm" 
+                        icon={RefreshCw}
+                        className="w-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 shadow-sm"
+                    >
+                        重新评估
+                    </Button>
                 </div>
           </div>
 
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col min-h-[300px]">
-              <div className="flex items-center justify-between mb-4">
+          {/* Right: History Trend Chart */}
+          <div className="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col">
+              <div className="flex items-center justify-between mb-2">
                   <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
-                      <History className="w-4 h-4 text-indigo-500" /> 赢单指数演变
+                      <History className="w-4 h-4 text-indigo-500" /> 
+                      评分历史演变
                   </h3>
+                  {history.length <= 1 && (
+                      <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded">暂无足够历史数据</span>
+                  )}
               </div>
               
-              {/* 修复：确定的 min-h 解决 Recharts 报错 */}
-              <div className="flex-1 w-full min-h-[220px]">
+              <div className="flex-1 w-full min-h-[180px]">
                   <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={history.length > 0 ? history : [{date: '今天', score: data.score}]}>
+                      <LineChart data={history.length > 0 ? history : [{date: new Date().toISOString().split('T')[0], score: data.score}]}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                          <YAxis domain={[0, 100]} tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} width={30} />
+                          <XAxis 
+                              dataKey="date" 
+                              tick={{fontSize: 10, fill: '#94a3b8'}} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              padding={{ left: 10, right: 10 }}
+                          />
+                          <YAxis 
+                              domain={[0, 100]} 
+                              tick={{fontSize: 10, fill: '#94a3b8'}} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              width={30}
+                          />
                           <Tooltip content={<CustomTooltip />} />
-                          <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={3} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 6 }} />
+                          <Line 
+                              type="monotone" 
+                              dataKey="score" 
+                              stroke="#6366f1" 
+                              strokeWidth={3} 
+                              dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} 
+                              activeDot={{ r: 6, fill: '#4f46e5' }}
+                              animationDuration={1500}
+                          />
                       </LineChart>
                   </ResponsiveContainer>
               </div>
           </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-10">
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+          <h3 className="font-bold text-slate-800 text-sm mb-1">AI 诊断综述</h3>
+          <p className="text-slate-600 leading-relaxed font-medium text-sm">
+                {data.summary}
+          </p>
+      </div>
+
+      {/* Grid: Gap Analysis */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
          {data.categories.map((cat, idx) => (
-             <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:border-indigo-300 transition-colors group">
+             <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:border-indigo-300 transition-colors">
+                 {/* Header */}
                  <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                      <h3 className="font-bold text-slate-800 flex items-center gap-2">
                          {cat.status === 'Good' ? <CheckCircle2 className="w-5 h-5 text-emerald-500"/> : <AlertCircle className="w-5 h-5 text-amber-500"/>}
@@ -171,39 +229,56 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
                      </div>
                  </div>
 
-                 <div className="p-5 flex-1 space-y-4">
-                     {cat.missing.length > 0 && (
-                        <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
-                            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2 block flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" /> 情报缺失 (画像 Gap)
-                            </span>
+                 {/* Content */}
+                 <div className="p-5 flex-1 space-y-5">
+                     
+                     {/* Evidence */}
+                     {cat.evidence.length > 0 && (
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">已验证信息</span>
                             <ul className="space-y-1.5">
-                                {cat.missing.map((item, i) => (
-                                    <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
-                                        <div className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 shrink-0" />
-                                        <span>{item}</span>
+                                {cat.evidence.map((item, i) => (
+                                    <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
+                                        <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                                        <span className="opacity-90 leading-snug">{item}</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
                      )}
+
+                     {/* Missing / Gap */}
+                     {cat.missing.length > 0 ? (
+                        <div>
+                            <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> 画像缺失 (Gap)
+                            </span>
+                            <ul className="space-y-1.5">
+                                {cat.missing.map((item, i) => (
+                                    <li key={i} className="text-xs text-slate-700 flex items-start gap-2 bg-amber-50/50 p-1.5 rounded border border-amber-100/50">
+                                        <div className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                                        <span className="leading-snug">{item}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                     ) : (
+                         <div className="p-3 bg-emerald-50 rounded text-xs text-emerald-700 flex items-center justify-center gap-2">
+                             <CheckCircle2 className="w-4 h-4" /> 该维度信息完整
+                         </div>
+                     )}
                      
-                     <div className="mt-auto pt-4 border-t border-slate-100">
-                        <div className="flex items-start gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                            <div className="p-1.5 bg-indigo-200 rounded-lg text-indigo-700 shrink-0">
-                                <HelpCircle className="w-4 h-4" />
+                     {/* Coaching Tip */}
+                     <div className="mt-4 pt-4 border-t border-slate-100">
+                        <div className="flex items-start gap-3 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                            <div className="p-1.5 bg-indigo-200 rounded-full text-indigo-700 shrink-0 mt-0.5">
+                                <HelpCircle className="w-3.5 h-3.5" />
                             </div>
-                            <div className="flex-1">
-                                <span className="text-[10px] font-bold text-indigo-500 uppercase block mb-1">补齐行动建议</span>
-                                <p className="text-sm text-indigo-900 font-medium leading-relaxed mb-3">"{cat.coaching_tip}"</p>
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => onChangeView?.(ViewState.WEB_RESEARCH)}
-                                        className="text-[10px] bg-white border border-indigo-200 text-indigo-600 px-2 py-1 rounded-md hover:bg-indigo-600 hover:text-white transition-colors flex items-center gap-1 font-bold"
-                                    >
-                                        <Search className="w-2.5 h-2.5" /> 互联网调研
-                                    </button>
-                                </div>
+                            <div>
+                                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide block mb-0.5">跟进策略 / 提问建议</span>
+                                <p className="text-sm text-indigo-900 font-medium leading-snug">
+                                    "{cat.coaching_tip}"
+                                </p>
                             </div>
                         </div>
                      </div>
@@ -211,6 +286,7 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate, onChangeView }) =
              </div>
          ))}
       </div>
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewState, Customer } from './types';
+import { ViewState, Customer, Stakeholder } from './types';
 import { INITIAL_CUSTOMERS } from './data/mockData';
 import { PersonaBuilder } from './components/persona/PersonaBuilder';
 import AssessmentView from './components/AssessmentView';
@@ -18,8 +18,13 @@ const App: React.FC = () => {
   const [appMode, setAppMode] = useState<'PIPELINE' | 'WORKSPACE'>('PIPELINE');
   const [view, setView] = useState<ViewState>(ViewState.PROJECT_COCKPIT);
   
+  // State to hold cross-view editing intent (e.g. from search or external link)
+  const [stakeholderToEdit, setStakeholderToEdit] = useState<Stakeholder | null>(null);
+  
+  // State to hold the research query when transitioning from Persona to Research view
   const [initialResearchQuery, setInitialResearchQuery] = useState<string>('');
 
+  // Initialize from LocalStorage or Fallback to Mocks
   const [customers, setCustomers] = useState<Customer[]>(() => {
     try {
         const saved = localStorage.getItem('salespilot_customers');
@@ -35,6 +40,7 @@ const App: React.FC = () => {
   
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
+  // Persistence Effect
   useEffect(() => {
     localStorage.setItem('salespilot_customers', JSON.stringify(customers));
   }, [customers]);
@@ -48,17 +54,23 @@ const App: React.FC = () => {
   const handleSelectCustomer = (id: string) => {
     setSelectedCustomerId(id);
     setAppMode('WORKSPACE');
-    setView(ViewState.PROJECT_COCKPIT);
+    setView(ViewState.PROJECT_COCKPIT); // Default to cockpit when selecting a customer
   };
 
   const handleAddCustomer = (newCustomer: Customer) => {
     setCustomers(prev => [newCustomer, ...prev]);
   };
 
+  // --- Cross-Component Actions ---
   const handleCompetitorResearch = (competitors: string[]) => {
       const query = `Analyze the competitive landscape between ${activeCustomer.name} and ${competitors.join(', ')}. Compare their market share, recent strategic moves, and strengths/weaknesses.`;
       setInitialResearchQuery(query);
       setView(ViewState.WEB_RESEARCH);
+  };
+
+  const handleEditStakeholderIntent = (s: Stakeholder) => {
+      setStakeholderToEdit(s);
+      setView(ViewState.PERSONA);
   };
 
   if (appMode === 'PIPELINE') {
@@ -78,11 +90,15 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen}
         toggle={() => setSidebarOpen(!isSidebarOpen)}
         currentView={view}
-        onViewChange={setView}
+        onViewChange={(v) => {
+            setView(v);
+            if (v !== ViewState.PERSONA) setStakeholderToEdit(null); // Clear intent if manually switching
+        }}
         onBackToPipeline={() => setAppMode('PIPELINE')}
         customerName={activeCustomer?.name || 'Loading...'}
       />
 
+      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white relative">
         
         {activeCustomer && (
@@ -93,17 +109,23 @@ const App: React.FC = () => {
                 onBack={() => setAppMode('PIPELINE')}
             />
 
+            {/* Content Area */}
             <div className="flex-1 overflow-hidden bg-slate-50/50 p-6">
                 <div className="max-w-7xl mx-auto h-full">
                     {view === ViewState.PROJECT_COCKPIT && (
-                        <ProjectCockpit customer={activeCustomer} onChangeView={setView} />
+                        <ProjectCockpit 
+                            customer={activeCustomer} 
+                            onChangeView={setView} 
+                            onUpdateCustomer={handleUpdateCustomer}
+                        />
                     )}
                     {view === ViewState.PERSONA && (
                         <PersonaBuilder 
                             customer={activeCustomer} 
                             onUpdate={handleUpdateCustomer} 
                             onResearchCompetitors={handleCompetitorResearch}
-                            onChangeView={setView}
+                            initialStakeholder={stakeholderToEdit}
+                            onClearInitialStakeholder={() => setStakeholderToEdit(null)}
                         />
                     )}
                     {view === ViewState.VISIT_RECORDS && (
@@ -135,6 +157,7 @@ const App: React.FC = () => {
                 </div>
             </div>
 
+            {/* Global Chat / Copilot Widget */}
             <GlobalChatWidget customer={activeCustomer} />
           </>
         )}

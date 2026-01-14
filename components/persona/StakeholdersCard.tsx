@@ -6,12 +6,12 @@ import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { Stakeholder, Relationship } from '../../types';
 import { StakeholderOrgChart } from './StakeholderOrgChart';
-import { getStanceColor, getRoleColor, getRoleLabel } from '../../utils/formatters';
+import { getStanceColor, getRoleColor, getRoleLabel, getStanceLabel } from '../../utils/formatters';
 import { Avatar } from '../ui/Avatar';
 
 interface Props {
     stakeholders: Stakeholder[];
-    relationships?: Relationship[]; // New prop
+    relationships?: Relationship[]; 
     onAdd: () => void;
     onView: (s: Stakeholder) => void;
     onDataChange?: (updates: { decisionMakers?: Stakeholder[]; relationships?: Relationship[] }) => void;
@@ -20,7 +20,6 @@ interface Props {
 export const StakeholdersCard: React.FC<Props> = ({ stakeholders, relationships = [], onAdd, onView, onDataChange }) => {
     const [viewMode, setViewMode] = useState<'LIST' | 'CHART'>('LIST');
     
-    // --- Handlers for Org Chart ---
     const handleUpdateStakeholder = (updated: Stakeholder) => {
         if (!onDataChange) return;
         const newStakeholders = stakeholders.map(s => s.id === updated.id ? updated : s);
@@ -57,10 +56,10 @@ export const StakeholdersCard: React.FC<Props> = ({ stakeholders, relationships 
                 </div>
             </div>
             <CardDescription>
-                {viewMode === 'LIST' ? '关键决策人、角色与支持度清单。' : '基于汇报关系(实线)与影响力(虚线)生成的权力地图。'}
+                {viewMode === 'LIST' ? '关键决策人、角色与支持度清单。' : '基于汇报关系与影响力生成的权力地图。'}
             </CardDescription>
 
-            <div className="mt-6 flex-1 overflow-auto">
+            <div className="mt-6 flex-1 overflow-auto custom-scrollbar">
                 {viewMode === 'CHART' ? (
                      <StakeholderOrgChart 
                         stakeholders={stakeholders} 
@@ -72,37 +71,44 @@ export const StakeholdersCard: React.FC<Props> = ({ stakeholders, relationships 
                 ) : (
                     <div className="space-y-3">
                         {stakeholders && stakeholders.length > 0 ? (
-                            stakeholders.map((dm) => (
-                                <div
-                                    key={dm.id}
-                                    onClick={() => onView(dm)}
-                                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
-                                >
-                                    <Avatar name={dm.name} size="md" className="border-white shadow-sm shrink-0 bg-slate-100 text-slate-500" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-sm font-bold text-slate-800 truncate">{dm.name}</span>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getRoleColor(dm.role)} truncate`}>
-                                                {getRoleLabel(dm.role)}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                                            <span className="truncate max-w-[120px]">{dm.title || '职位未知'}</span>
-                                            {dm.reportsTo && (
-                                                <span className="text-[10px] text-slate-400 flex items-center gap-0.5 bg-slate-50 px-1 rounded">
-                                                    <Network className="w-2.5 h-2.5" /> 汇报给: {stakeholders.find(s => s.id === dm.reportsTo)?.name || '未知'}
+                            stakeholders.map((dm) => {
+                                const stanceStyle = getStanceColor(dm.stance);
+                                const borderColor = stanceStyle.split(' ')[0].replace('border-', 'bg-');
+                                
+                                return (
+                                    <div
+                                        key={dm.id}
+                                        onClick={() => onView(dm)}
+                                        className="relative flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden"
+                                    >
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${borderColor}`}></div>
+                                        
+                                        <Avatar name={dm.name} size="md" className="border-white shadow-sm shrink-0 bg-slate-50 text-slate-500" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-sm font-bold text-slate-800 truncate">{dm.name}</span>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getRoleColor(dm.role)} truncate`}>
+                                                    {getRoleLabel(dm.role)}
                                                 </span>
-                                            )}
-                                            {dm.stance && (
-                                                <span className={`w-2 h-2 rounded-full ${getStanceColor(dm.stance).split(' ')[0]}`} title={`立场: ${dm.stance}`}></span>
-                                            )}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                <span className="truncate max-w-[120px]">{dm.title || '职位未知'}</span>
+                                                {dm.reportsTo && (
+                                                    <span className="text-[10px] text-slate-400 flex items-center gap-0.5 bg-slate-50 px-1 rounded">
+                                                        <Network className="w-2.5 h-2.5" /> {stakeholders.find(s => s.id === dm.reportsTo)?.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                                            <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${stanceStyle}`}>
+                                                {getStanceLabel(dm.stance)}
+                                            </div>
+                                            <Edit2 className="w-4 h-4 text-slate-400" />
                                         </div>
                                     </div>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Edit2 className="w-4 h-4 text-slate-400" />
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                                 <EmptyState 

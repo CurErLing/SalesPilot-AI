@@ -5,7 +5,7 @@ import { Customer, Stakeholder } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { Avatar } from './ui/Avatar';
-import { UserCircle, Mail, Phone, Edit2, Calendar, MessageSquare, Briefcase, FileText } from 'lucide-react';
+import { UserCircle, Mail, Phone, Edit2, Calendar, MessageSquare, Briefcase, FileText, Plus } from 'lucide-react';
 import { getRoleLabel } from '../utils/formatters';
 
 interface Props {
@@ -14,6 +14,7 @@ interface Props {
   stakeholder: Stakeholder | null;
   customer: Customer;
   onEdit: (stakeholder: Stakeholder) => void;
+  onAddInteraction?: (stakeholder: Stakeholder) => void; // New action
 }
 
 export const StakeholderProfileModal: React.FC<Props> = ({ 
@@ -21,7 +22,8 @@ export const StakeholderProfileModal: React.FC<Props> = ({
   onClose, 
   stakeholder, 
   customer,
-  onEdit 
+  onEdit,
+  onAddInteraction
 }) => {
   if (!stakeholder) return null;
 
@@ -30,12 +32,12 @@ export const StakeholderProfileModal: React.FC<Props> = ({
     if (!customer.visits) return [];
     
     return customer.visits.filter(visit => {
-      // 1. Explicit Link (New feature)
+      // 1. Explicit Link
       if (visit.stakeholderIds?.includes(stakeholder.id)) {
           return true;
       }
 
-      // 2. Implicit Link (Legacy: Match name in title/content)
+      // 2. Implicit Link
       const searchTerms = [stakeholder.name, stakeholder.title].filter(Boolean);
       const textToSearch = `${visit.title} ${visit.content} ${visit.transcript || ''}`;
       return searchTerms.some(term => textToSearch.includes(term));
@@ -65,9 +67,28 @@ export const StakeholderProfileModal: React.FC<Props> = ({
       }
       maxWidth="max-w-4xl"
       footer={
-        <div className="flex justify-between w-full">
-            <Button variant="secondary" onClick={onClose}>关闭</Button>
-            <Button icon={Edit2} onClick={() => { onClose(); onEdit(stakeholder); }}>编辑资料</Button>
+        <div className="flex justify-between w-full items-center">
+            {/* Left side: Management action */}
+            <Button 
+                variant="secondary" 
+                size="sm" 
+                icon={Edit2} 
+                onClick={() => { onClose(); onEdit(stakeholder); }}
+                className="text-slate-600 border-slate-200"
+            >
+                编辑资料
+            </Button>
+
+            {/* Right side: Core business action */}
+            <div className="flex gap-3">
+                <Button 
+                    icon={Plus} 
+                    onClick={() => { onClose(); onAddInteraction?.(stakeholder); }}
+                    className="shadow-md shadow-indigo-100"
+                >
+                    添加互动记录
+                </Button>
+            </div>
         </div>
       }
     >

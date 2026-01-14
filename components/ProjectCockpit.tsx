@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Customer, ViewState, Stakeholder } from '../types';
 import { StakeholderProfileModal } from './StakeholderProfileModal';
+import { StakeholderEditModal } from './persona/StakeholderEditModal';
 import { Button } from './ui/Button';
 import { AlertTriangle, LayoutGrid, Newspaper } from 'lucide-react';
 
@@ -16,10 +17,12 @@ import { QuickActionsCard } from './cockpit/QuickActionsCard';
 interface Props {
   customer: Customer;
   onChangeView: (view: ViewState) => void;
+  onUpdateCustomer?: (customer: Customer) => void;
 }
 
-const ProjectCockpit: React.FC<Props> = ({ customer, onChangeView }) => {
+const ProjectCockpit: React.FC<Props> = ({ customer, onChangeView, onUpdateCustomer }) => {
   const [selectedStakeholder, setSelectedStakeholder] = useState<Stakeholder | null>(null);
+  const [editingStakeholder, setEditingStakeholder] = useState<Partial<Stakeholder> | null>(null);
 
   // --- Derived Metrics ---
   const daysSinceContact = useMemo(() => {
@@ -31,6 +34,39 @@ const ProjectCockpit: React.FC<Props> = ({ customer, onChangeView }) => {
 
   const assessment = customer.assessmentResult;
   const latestVisits = customer.visits.slice(0, 3);
+
+  // --- Data Logic ---
+  const handleSaveStakeholder = (data: Partial<Stakeholder>) => {
+    if (!onUpdateCustomer || !data.name) return;
+
+    const newStakeholder = {
+        ...data,
+        id: data.id || Date.now().toString(),
+        role: data.role || 'Unknown',
+        stance: data.stance || 'Neutral'
+    } as Stakeholder;
+
+    const currentList = customer.persona.decisionMakers || [];
+    const index = currentList.findIndex(dm => dm.id === newStakeholder.id);
+    let newList = index >= 0 ? [...currentList] : [...currentList, newStakeholder];
+    if (index >= 0) newList[index] = newStakeholder;
+
+    onUpdateCustomer({
+        ...customer,
+        persona: { ...customer.persona, decisionMakers: newList }
+    });
+    setEditingStakeholder(null);
+  };
+
+  const handleDeleteStakeholder = (id: string) => {
+    if (!onUpdateCustomer) return;
+    const newList = customer.persona.decisionMakers.filter(dm => dm.id !== id);
+    onUpdateCustomer({
+        ...customer,
+        persona: { ...customer.persona, decisionMakers: newList }
+    });
+    setEditingStakeholder(null);
+  };
 
   return (
     <div className="h-full overflow-y-auto p-2 space-y-5 animate-in fade-in zoom-in-95 duration-300">
@@ -103,10 +139,24 @@ const ProjectCockpit: React.FC<Props> = ({ customer, onChangeView }) => {
          onClose={() => setSelectedStakeholder(null)}
          stakeholder={selectedStakeholder}
          customer={customer}
-         onEdit={() => {
+         onEdit={(s) => {
              setSelectedStakeholder(null);
-             onChangeView(ViewState.PERSONA);
+             setEditingStakeholder(s); // Open edit modal directly instead of navigating
          }}
+         onAddInteraction={(s) => {
+             setSelectedStakeholder(null);
+             onChangeView(ViewState.VISIT_RECORDS);
+         }}
+      />
+
+      {/* Direct Editing Modal in Cockpit */}
+      <StakeholderEditModal
+        isOpen={!!editingStakeholder}
+        onClose={() => setEditingStakeholder(null)}
+        initialData={editingStakeholder}
+        onSave={handleSaveStakeholder}
+        onDelete={handleDeleteStakeholder}
+        allStakeholders={customer.persona.decisionMakers}
       />
     </div>
   );

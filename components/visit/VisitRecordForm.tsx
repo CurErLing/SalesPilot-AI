@@ -1,12 +1,14 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { VisitRecord, Stakeholder } from '../../types';
-import { Clock, Mic, Trash2, Loader2, Image as ImageIcon, X, Plus, CheckSquare, Users, Target, ListChecks, HelpCircle, Check } from 'lucide-react';
+import { Clock, Mic, Trash2, Loader2, Image as ImageIcon, X, Plus, CheckSquare, Users, Target, ListChecks, HelpCircle, Check, Smartphone, UploadCloud } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { TranscriptEditor } from './TranscriptEditor';
+import { AudioTrimmerModal } from './AudioTrimmerModal';
+import { BluetoothSyncModal } from './BluetoothSyncModal';
 
 interface Props {
     record: Partial<VisitRecord>;
@@ -39,6 +41,13 @@ export const VisitRecordForm: React.FC<Props> = ({
     const imageInputRef = useRef<HTMLInputElement>(null);
     const aiStatus = record.aiStatus || 'idle';
 
+    // Trimmer State
+    const [trimmerOpen, setTrimmerOpen] = useState(false);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+    // Bluetooth State
+    const [bluetoothOpen, setBluetoothOpen] = useState(false);
+
     const toggleStakeholder = (stakeholderId: string) => {
         const currentIds = record.stakeholderIds || [];
         let newIds;
@@ -50,8 +59,49 @@ export const VisitRecordForm: React.FC<Props> = ({
         onChange({ ...record, stakeholderIds: newIds });
     };
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setPendingFile(file);
+            setTrimmerOpen(true);
+        }
+    };
+
+    const handleHardwareFileComplete = (file: File) => {
+        setBluetoothOpen(false);
+        setPendingFile(file);
+        setTrimmerOpen(true);
+    };
+
+    const handleTrimConfirm = async (trimmedBlob: Blob, startTime: number, endTime: number) => {
+        setTrimmerOpen(false);
+        const file = new File([trimmedBlob], pendingFile?.name || "trimmed_audio.wav", { type: trimmedBlob.type });
+        const syntheticEvent = {
+            target: {
+                files: [file]
+            }
+        } as unknown as React.ChangeEvent<HTMLInputElement>;
+        onAudioUpload(syntheticEvent);
+        setPendingFile(null);
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-8 animate-in fade-in duration-300">
+            {/* Audio Trimmer Modal */}
+            <AudioTrimmerModal 
+                isOpen={trimmerOpen}
+                onClose={() => { setTrimmerOpen(false); setPendingFile(null); if(audioInputRef.current) audioInputRef.current.value = ''; }}
+                file={pendingFile}
+                onConfirm={handleTrimConfirm}
+            />
+
+            {/* Bluetooth Sync Modal */}
+            <BluetoothSyncModal 
+                isOpen={bluetoothOpen}
+                onClose={() => setBluetoothOpen(false)}
+                onFileComplete={handleHardwareFileComplete}
+            />
+
             {/* Header: Logistics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Input 
@@ -241,18 +291,38 @@ export const VisitRecordForm: React.FC<Props> = ({
                                 )}
                             </div>
                         ) : (
-                            <div onClick={() => audioInputRef.current?.click()} className={`flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-100 rounded-lg p-10 ${aiStatus === 'transcribing' ? 'opacity-50 pointer-events-none' : ''}`}>
-                                <input type="file" ref={audioInputRef} onChange={onAudioUpload} accept="audio/*" className="hidden" />
-                                {aiStatus === 'transcribing' ? (
-                                    <><Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" /><span className="text-sm font-medium text-indigo-600">正在转录语音 (生成时间轴)...</span></>
-                                ) : (
-                                    <>
-                                        <div className="bg-white p-4 rounded-full shadow-sm mb-3 text-indigo-600 border border-slate-100 group-hover:scale-110 transition-transform">
-                                            <Mic className="w-8 h-8" />
+                            <div className="flex flex-col items-center justify-center py-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                                    {/* Option A: Local Upload */}
+                                    <div 
+                                        onClick={() => !aiStatus.startsWith('transcribing') && audioInputRef.current?.click()}
+                                        className={`flex flex-col items-center justify-center p-8 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group ${aiStatus === 'transcribing' ? 'opacity-50 pointer-events-none' : ''}`}
+                                    >
+                                        <input type="file" ref={audioInputRef} onChange={handleFileSelect} accept="audio/*" className="hidden" />
+                                        <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center mb-3 group-hover:bg-white group-hover:text-indigo-600 transition-colors">
+                                            <UploadCloud className="w-6 h-6" />
                                         </div>
-                                        <span className="text-base font-bold text-slate-700">点击上传会议录音</span>
-                                        <span className="text-sm text-slate-400 mt-1">支持 MP3, M4A, WAV • 自动生成时间轴逐字稿</span>
-                                    </>
+                                        <span className="text-sm font-bold text-slate-700">本地录音上传</span>
+                                        <span className="text-[10px] text-slate-400 mt-1">支持 MP3, WAV, M4A</span>
+                                    </div>
+
+                                    {/* Option B: Hardware Import */}
+                                    <div 
+                                        onClick={() => setBluetoothOpen(true)}
+                                        className="flex flex-col items-center justify-center p-8 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group"
+                                    >
+                                        <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                            <Smartphone className="w-6 h-6" />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-700">硬件设备同步</span>
+                                        <span className="text-[10px] text-indigo-400 mt-1 font-medium">专用录音笔 5.3 蓝牙高速导入</span>
+                                    </div>
+                                </div>
+                                {aiStatus === 'transcribing' && (
+                                    <div className="mt-8 flex items-center gap-3 text-indigo-600 animate-pulse">
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span className="text-sm font-bold">AI 正在转录云端语音...</span>
+                                    </div>
                                 )}
                             </div>
                         )}

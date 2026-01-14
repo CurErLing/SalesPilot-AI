@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
 import { Customer } from '../types';
 import { Button } from './ui/Button';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { getStatusColor } from '../utils/formatters';
 
 // Sub Components
@@ -45,91 +46,116 @@ const DashboardView: React.FC<Props> = ({ customers, onSelectCustomer, onAddCust
           }
 
           // 2. Identify Tasks (Planned Meetings OR Next Steps from latest visit)
-          c.visits.forEach(v => {
-              if (v.status === 'Planned') {
-                  tasks.push({
-                      type: 'meeting',
-                      date: v.date,
-                      content: v.title || v.visitGoal || '计划外拜访',
-                      customer: c
-                  });
-              }
-          });
-
-          if (c.visits.length > 0) {
-              const latest = c.visits[0];
-              if (latest.nextSteps && latest.status === 'Completed') {
+          // Sort visits to get latest
+          const sortedVisits = [...c.visits].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+          // Check for upcoming planned meetings
+          const plannedVisit = sortedVisits.find(v => v.status === 'Planned');
+          
+          if (plannedVisit) {
+              tasks.push({
+                  type: 'meeting',
+                  date: plannedVisit.date,
+                  content: plannedVisit.title || '预定拜访/会议',
+                  customer: c
+              });
+          } else if (sortedVisits.length > 0) {
+              // If no planned meeting, show next step from latest completed visit if exists
+              const latestCompleted = sortedVisits.find(v => v.status !== 'Planned');
+              if (latestCompleted && latestCompleted.nextSteps) {
                   tasks.push({
                       type: 'todo',
-                      date: latest.date,
-                      content: latest.nextSteps,
+                      date: latestCompleted.date, // context date
+                      content: latestCompleted.nextSteps,
                       customer: c
                   });
               }
           }
       });
 
+      // Sort risks by inactivity desc
+      risks.sort((a, b) => b.daysInactive - a.daysInactive);
+      // Sort tasks (meetings first, then by date)
+      tasks.sort((a, b) => {
+          if (a.type === 'meeting' && b.type !== 'meeting') return -1;
+          if (a.type !== 'meeting' && b.type === 'meeting') return 1;
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+
       return { risks, tasks };
   }, [customers]);
 
-  // --- Filtering & Sorting Logic ---
+
+  // --- Filtering Logic ---
   const filteredCustomers = useMemo(() => {
-    return customers
-      .filter(c => {
-        const matchesSearch = 
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (c.projectName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (c.persona.industry || '').toLowerCase().includes(searchQuery.toLowerCase());
-        
-        const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-        
-        return matchesSearch && matchesStatus;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'recent') {
-          return new Date(b.lastContact).getTime() - new Date(a.lastContact).getTime();
-        }
+    let result = customers;
+
+    // 1. Status Filter
+    if (statusFilter !== 'ALL') {
+        result = result.filter(c => c.status === statusFilter);
+    }
+
+    // 2. Search Filter (Deep Search)
+    if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        result = result.filter(c => {
+            // Basic Fields
+            if (c.name.toLowerCase().includes(q) || c.projectName?.toLowerCase().includes(q)) return true;
+            if (c.persona.industry?.toLowerCase().includes(q)) return true;
+            
+            // Deep Search: Decision Makers
+            if (c.persona.decisionMakers?.some(dm => dm.name.toLowerCase().includes(q))) return true;
+
+            // Deep Search: Visits (Title, Content)
+            if (c.visits?.some(v => v.title.toLowerCase().includes(q) || v.content?.toLowerCase().includes(q))) return true;
+
+            return false;
+        });
+    }
+
+    // 3. Sorting
+    return result.sort((a, b) => {
         if (sortBy === 'score') {
-          return (b.assessmentScore || 0) - (a.assessmentScore || 0);
+            return (b.assessmentScore || 0) - (a.assessmentScore || 0);
         }
         if (sortBy === 'budget') {
-          // Naive string parsing for ¥3,500,000 style
-          const getVal = (s: string) => parseInt(s.replace(/[^0-9]/g, '')) || 0;
-          return getVal(b.persona.budget) - getVal(a.persona.budget);
+             // Simple parsing of budget string to number for sorting
+             const getVal = (s?: string) => parseFloat(s?.replace(/[^0-9]/g, '') || '0');
+             return getVal(b.persona.budget) - getVal(a.persona.budget);
         }
-        return 0;
-      });
+        // Default: Recent (Last Contact or UpdatedAt)
+        return new Date(b.lastContact).getTime() - new Date(a.lastContact).getTime();
+    });
   }, [customers, searchQuery, statusFilter, sortBy]);
 
   return (
-    <div className="h-screen overflow-y-auto custom-scrollbar bg-slate-50/50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div>
-                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">商机管道 (Pipeline)</h1>
-                <p className="text-slate-500 mt-1 font-medium">欢迎回来，今日有 {actionCenterData.tasks.length} 项待办任务需要跟进。</p>
-            </div>
-            <Button 
-                onClick={() => setIsModalOpen(true)} 
-                icon={Plus}
-                size="lg"
-                className="shadow-xl shadow-indigo-100"
-            >
-                新建商机
-            </Button>
+    <div className="h-screen bg-slate-50 p-8 overflow-y-auto custom-scrollbar">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 mb-2">商机管道</h1>
+            <p className="text-slate-500 text-lg">管理您的销售机会，从线索到赢单的全流程。</p>
+          </div>
+          <Button 
+            onClick={() => setIsModalOpen(true)} 
+            icon={Plus} 
+            size="lg"
+            className="shadow-xl shadow-indigo-200"
+          >
+            新建商机
+          </Button>
         </div>
 
-        {/* Action Center (Risks & Daily Tasks) */}
+        {/* Action Center */}
         <ActionCenter 
             tasks={actionCenterData.tasks} 
-            risks={actionCenterData.risks}
-            onSelectCustomer={onSelectCustomer}
+            risks={actionCenterData.risks} 
+            onSelectCustomer={onSelectCustomer} 
             getStatusColor={getStatusColor}
         />
 
-        {/* Search & Filter Toolbar */}
+        {/* Toolbar */}
         <DashboardToolbar 
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -139,34 +165,52 @@ const DashboardView: React.FC<Props> = ({ customers, onSelectCustomer, onAddCust
             setSortBy={setSortBy}
         />
 
-        {/* Customers Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-            {filteredCustomers.length > 0 ? (
-                filteredCustomers.map(customer => (
-                    <CustomerCard 
-                        key={customer.id} 
-                        customer={customer} 
-                        onClick={() => onSelectCustomer(customer.id)}
-                        getStatusColor={getStatusColor}
-                    />
-                ))
-            ) : (
-                <div className="col-span-full py-20 bg-white rounded-3xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                        <Plus className="w-8 h-8 opacity-20" />
-                    </div>
-                    <p className="text-lg font-medium">未找到匹配的商机</p>
-                    <p className="text-sm mt-1">尝试调整搜索词或筛选条件</p>
+        {/* Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
+          {filteredCustomers.length > 0 ? (
+            filteredCustomers.map((c) => (
+                <CustomerCard 
+                    key={c.id} 
+                    customer={c} 
+                    onClick={() => onSelectCustomer(c.id)} 
+                    getStatusColor={getStatusColor}
+                />
+            ))
+          ) : (
+             <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                 <Search className="w-12 h-12 mb-4 opacity-20" />
+                 <p className="text-lg font-medium">未找到匹配的商机</p>
+                 <p className="text-sm">尝试调整搜索关键词或过滤器</p>
+                 <Button 
+                    variant="ghost" 
+                    className="mt-4"
+                    onClick={() => { setSearchQuery(''); setStatusFilter('ALL'); }}
+                 >
+                    清除所有筛选
+                 </Button>
+             </div>
+          )}
+          
+          {/* Add New Placeholder Card (Only show when no filters are active or specifically filtering for it) */}
+          {statusFilter === 'ALL' && !searchQuery && (
+            <div 
+                onClick={() => setIsModalOpen(true)}
+                className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-indigo-400 hover:bg-indigo-50/30 hover:text-indigo-500 transition-all cursor-pointer min-h-[320px]"
+            >
+                <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Plus className="w-8 h-8" />
                 </div>
-            )}
+                <span className="font-semibold">创建新商机</span>
+            </div>
+          )}
         </div>
-
       </div>
 
+      {/* Create Modal */}
       <NewCustomerModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onAdd={onAddCustomer} 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          onAdd={onAddCustomer} 
       />
     </div>
   );

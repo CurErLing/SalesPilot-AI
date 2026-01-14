@@ -1,61 +1,60 @@
 
 import React, { useState } from 'react';
-import { Building2, Sparkles, Loader2, Wallet, Clock, Map, Target, FileText, ChevronDown, Info, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Building2, Sparkles, Loader2, Wallet, Clock, Map, Target, FileText, ChevronDown, Info } from 'lucide-react';
 import { Card, CardTitle, CardDescription } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { enrichFirmographics } from '../../services/geminiService';
 import { FieldMetadata } from '../../types';
 
 interface Props {
+    // Project Data
     projectName?: string;
     projectBackground?: string;
     status: string;
+    
+    // Firmographics
     industry: string;
     companySize: string;
     scenario?: string;
     companyName?: string;
+    
+    // Commercials
     budget: string;
     projectTimeline: string;
+    
+    // Metadata
     metadata?: Record<string, FieldMetadata>;
-    onChange: (field: any, value: string, isVerified?: boolean) => void;
+
+    // Actions
+    onChange: (field: any, value: string) => void;
     onStatusChange: (status: any) => void;
 }
 
 const STAGES = ['线索', '合格', '提案', '谈判', '赢单', '输单'];
 
-// Fix: Changed signature to receive 'props' object so it can be referenced in handleVerify (line 38)
-export const ProjectContextCard: React.FC<Props> = (props) => {
-    const { 
-        projectName, projectBackground, status, industry, companySize, scenario, 
-        budget, projectTimeline, companyName, metadata, onChange, onStatusChange
-    } = props;
+export const ProjectContextCard: React.FC<Props> = ({ 
+    projectName,
+    projectBackground,
+    status,
+    industry, 
+    companySize, 
+    scenario, 
+    budget, 
+    projectTimeline, 
+    companyName, 
+    metadata,
+    onChange,
+    onStatusChange
+}) => {
     const [loading, setLoading] = useState(false);
 
-    // 辅助函数：判断字段是否需要审核（AI 提取且未确认）
-    const needsVerification = (field: string) => {
-        return metadata?.[field] && !metadata[field].isVerified;
-    };
-
-    const handleVerify = (field: string) => {
-        // Fix: 'props' is now defined and accessible here
-        onChange(field, (props as any)[field] || '', true);
-    };
-
-    const handleRollback = (field: string) => {
-        const prev = metadata?.[field]?.previousValue;
-        if (prev !== undefined) {
-            onChange(field, prev, true);
-        }
-    };
-
-    // Fix: Implemented handleAutoFill which was referenced on line 173 but missing
     const handleAutoFill = async () => {
         if (!companyName) return;
         setLoading(true);
         try {
             const result = await enrichFirmographics(companyName);
-            if (result.industry) onChange('industry', result.industry, false);
-            if (result.companySize) onChange('companySize', result.companySize, false);
+            if (result.industry) onChange('industry', result.industry);
+            if (result.companySize) onChange('companySize', result.companySize);
         } catch (e) {
             console.error(e);
         } finally {
@@ -63,74 +62,75 @@ export const ProjectContextCard: React.FC<Props> = (props) => {
         }
     };
 
-    const VerificationBadge = ({ field }: { field: string }) => {
-        if (!needsVerification(field)) return null;
-        return (
-            <div className="flex items-center gap-1.5 animate-in fade-in zoom-in duration-300">
-                <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md flex items-center gap-1 border border-amber-200">
-                    <Sparkles className="w-2.5 h-2.5" /> AI 建议更新
-                </span>
-                <button onClick={() => handleVerify(field)} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded-md transition-colors" title="采纳 AI 建议">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => handleRollback(field)} className="p-1 hover:bg-slate-200 text-slate-500 rounded-md transition-colors" title="忽略并回滚">
-                    <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-            </div>
-        );
-    };
+    // Helper to check recent update for textarea
+    const isBackgroundNew = metadata?.['projectBackground'] && (Date.now() - metadata['projectBackground'].timestamp < 60000);
 
     return (
         <Card className="p-0 overflow-hidden border-slate-200 shadow-md">
+            {/* Header: Project Identity */}
             <div className="bg-slate-50/80 p-6 border-b border-slate-200 flex justify-between items-start">
                 <div className="flex-1 mr-4">
                     <div className="flex items-center gap-2 mb-2">
                         <CardTitle icon={FileText}><span className="text-lg">项目概况</span></CardTitle>
-                        <div className="text-[10px] text-slate-400 font-medium bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                            单一事实来源 (SSoT)
-                        </div>
+                        {companyName && (
+                            <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="text-[10px] text-indigo-600 bg-indigo-50 hover:bg-indigo-100 h-6 px-2"
+                                icon={loading ? Loader2 : Sparkles}
+                                onClick={handleAutoFill}
+                                isLoading={loading}
+                                disabled={loading}
+                            >
+                                AI 完善背景
+                            </Button>
+                        )}
                     </div>
                     <input
                         type="text"
                         value={projectName || ''}
-                        onChange={(e) => onChange('projectName', e.target.value, true)}
+                        onChange={(e) => onChange('projectName', e.target.value)}
                         className="text-2xl font-extrabold text-slate-900 bg-transparent border-none focus:ring-0 p-0 placeholder:text-slate-300 w-full"
                         placeholder="输入项目名称..."
                     />
-                    <CardDescription>
-                        核心项目数据由销售代表维护，AI 仅提供提取建议。
-                    </CardDescription>
+                    <CardDescription>定义项目的核心背景、关键指标与当前状态。</CardDescription>
                 </div>
             </div>
 
             <div className="p-6 space-y-8">
+                {/* 1. Key Metrics Row (Budget, Time, Stage) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                     <div className={`rounded-xl p-4 border flex flex-col justify-between h-full group transition-all ${needsVerification('budget') ? 'bg-amber-50/30 border-amber-300 ring-2 ring-amber-500/10' : 'bg-emerald-50/50 border-emerald-100 hover:border-emerald-200'}`}>
+                     {/* Budget */}
+                     <div className={`bg-emerald-50/50 rounded-xl p-4 border flex flex-col justify-between h-full group hover:border-emerald-200 transition-colors ${metadata?.['budget'] && (Date.now() - metadata['budget'].timestamp < 60000) ? 'border-emerald-400 ring-2 ring-emerald-500/10' : 'border-emerald-100'}`}>
                         <label className="text-xs font-bold text-emerald-600 uppercase tracking-wide flex items-center justify-between gap-1.5 mb-2">
                             <div className="flex items-center gap-1.5"><Wallet className="w-4 h-4" /> 预算规划</div>
-                            <VerificationBadge field="budget" />
+                            {metadata?.['budget'] && <span title={`来源: ${metadata['budget'].source}`}><Info className="w-3 h-3 text-emerald-400" /></span>}
                         </label>
                         <input
                             type="text"
                             value={budget}
-                            onChange={(e) => onChange('budget', e.target.value, true)}
-                            className={`w-full bg-transparent border-none p-0 text-xl font-black focus:ring-0 ${needsVerification('budget') ? 'text-amber-700' : 'text-slate-800'}`}
+                            onChange={(e) => onChange('budget', e.target.value)}
+                            className="w-full bg-transparent border-none p-0 text-xl font-black text-slate-800 focus:ring-0 placeholder:text-emerald-300/50 placeholder:font-normal"
+                            placeholder="¥ --"
                         />
                      </div>
 
-                     <div className={`rounded-xl p-4 border flex flex-col justify-between h-full group transition-all ${needsVerification('projectTimeline') ? 'bg-amber-50/30 border-amber-300 ring-2 ring-amber-500/10' : 'bg-blue-50/50 border-blue-100 hover:border-blue-200'}`}>
+                     {/* Timeline */}
+                     <div className={`bg-blue-50/50 rounded-xl p-4 border flex flex-col justify-between h-full group hover:border-blue-200 transition-colors ${metadata?.['projectTimeline'] && (Date.now() - metadata['projectTimeline'].timestamp < 60000) ? 'border-blue-400 ring-2 ring-blue-500/10' : 'border-blue-100'}`}>
                         <label className="text-xs font-bold text-blue-600 uppercase tracking-wide flex items-center justify-between gap-1.5 mb-2">
                             <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> 预计上线</div>
-                            <VerificationBadge field="projectTimeline" />
+                            {metadata?.['projectTimeline'] && <span title={`来源: ${metadata['projectTimeline'].source}`}><Info className="w-3 h-3 text-blue-400" /></span>}
                         </label>
                         <input
                             type="text"
                             value={projectTimeline}
-                            onChange={(e) => onChange('projectTimeline', e.target.value, true)}
-                            className={`w-full bg-transparent border-none p-0 text-xl font-black focus:ring-0 ${needsVerification('projectTimeline') ? 'text-amber-700' : 'text-slate-800'}`}
+                            onChange={(e) => onChange('projectTimeline', e.target.value)}
+                            className="w-full bg-transparent border-none p-0 text-xl font-black text-slate-800 focus:ring-0 placeholder:text-blue-300/50 placeholder:font-normal"
+                            placeholder="例如: 2024 Q3"
                         />
                      </div>
 
+                     {/* Stage */}
                      <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100 flex flex-col justify-between h-full group hover:border-indigo-200 transition-colors relative">
                         <label className="text-xs font-bold text-indigo-600 uppercase tracking-wide flex items-center gap-1.5 mb-2">
                             <Target className="w-4 h-4" /> 当前阶段
@@ -148,19 +148,27 @@ export const ProjectContextCard: React.FC<Props> = (props) => {
                      </div>
                 </div>
 
+                {/* 2. Deep Context Area (Background & Scenario) */}
                 <div className="space-y-4">
                     <div className="relative">
                         <div className="flex justify-between items-center mb-2">
                             <label className="text-sm font-bold text-slate-700 block flex items-center gap-2">
                                 项目背景与核心需求
+                                <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">AI 自动提取重点</span>
                             </label>
-                            <VerificationBadge field="projectBackground" />
+                            {metadata?.['projectBackground'] && (
+                                <span className={`text-[10px] flex items-center gap-1 ${isBackgroundNew ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                                    {isBackgroundNew && <Sparkles className="w-3 h-3 animate-pulse" />}
+                                    来源: {metadata['projectBackground'].source}
+                                </span>
+                            )}
                         </div>
                         <textarea
                             value={projectBackground || ''}
-                            onChange={(e) => onChange('projectBackground', e.target.value, true)}
-                            className={`w-full p-4 border rounded-xl text-sm leading-relaxed focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none shadow-inner ${needsVerification('projectBackground') ? 'bg-amber-50/20 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
+                            onChange={(e) => onChange('projectBackground', e.target.value)}
+                            className={`w-full p-4 bg-slate-50 border rounded-xl text-sm leading-relaxed text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none shadow-inner ${isBackgroundNew ? 'border-emerald-400 bg-emerald-50/10' : 'border-slate-200'}`}
                             rows={4}
+                            placeholder="描述项目的发起缘由、业务痛点及核心建设目标。例如：由于现有系统无法支撑双11流量，急需进行微服务架构升级..."
                         />
                     </div>
 
@@ -169,54 +177,48 @@ export const ProjectContextCard: React.FC<Props> = (props) => {
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block flex items-center gap-1">
                                 <Map className="w-3.5 h-3.5" /> 具体业务场景 (Scenario)
                             </label>
-                            <VerificationBadge field="scenario" />
+                            {metadata?.['scenario'] && (
+                                <span className="text-[10px] text-slate-400">来源: {metadata['scenario'].source}</span>
+                            )}
                          </div>
                         <input
                             type="text"
                             value={scenario || ''}
-                            onChange={(e) => onChange('scenario', e.target.value, true)}
-                            className={`w-full p-3 border rounded-lg text-sm outline-none transition-all ${needsVerification('scenario') ? 'bg-amber-50/20 border-amber-300 text-amber-900' : 'bg-white border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'}`}
+                            onChange={(e) => onChange('scenario', e.target.value)}
+                            className="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                            placeholder="例如：门店数字化升级 / 供应链协同..."
                         />
                     </div>
                 </div>
 
+                {/* 3. Firmographics (Secondary Info) */}
                 <div className="pt-6 border-t border-slate-100">
-                    <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">客户基本面</h4>
-                        <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="text-[10px] text-indigo-600 bg-indigo-50 h-6 px-2"
-                            icon={loading ? Loader2 : Sparkles}
-                            onClick={handleAutoFill}
-                            isLoading={loading}
-                        >
-                            AI 智能填充
-                        </Button>
-                    </div>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">客户基本面</h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <div className="flex justify-between mb-1.5">
                                 <label className="text-xs font-semibold text-slate-500 block">所属行业</label>
-                                <VerificationBadge field="industry" />
+                                {metadata?.['industry'] && <span title={`来源: ${metadata['industry'].source}`}><Info className="w-3 h-3 text-slate-300" /></span>}
                             </div>
                             <input
                                 type="text"
                                 value={industry}
-                                onChange={(e) => onChange('industry', e.target.value, true)}
-                                className={`w-full p-2.5 border rounded-lg text-sm outline-none transition-all ${needsVerification('industry') ? 'bg-amber-50/20 border-amber-300' : 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-indigo-500'}`}
+                                onChange={(e) => onChange('industry', e.target.value)}
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                placeholder="-- 未填写 --"
                             />
                         </div>
                         <div>
                             <div className="flex justify-between mb-1.5">
                                 <label className="text-xs font-semibold text-slate-500 block">人员规模</label>
-                                <VerificationBadge field="companySize" />
+                                {metadata?.['companySize'] && <span title={`来源: ${metadata['companySize'].source}`}><Info className="w-3 h-3 text-slate-300" /></span>}
                             </div>
                             <input
                                 type="text"
                                 value={companySize}
-                                onChange={(e) => onChange('companySize', e.target.value, true)}
-                                className={`w-full p-2.5 border rounded-lg text-sm outline-none transition-all ${needsVerification('companySize') ? 'bg-amber-50/20 border-amber-300' : 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-indigo-500'}`}
+                                onChange={(e) => onChange('companySize', e.target.value)}
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                placeholder="-- 未填写 --"
                             />
                         </div>
                     </div>

@@ -116,8 +116,7 @@ const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearchCompeti
   return (
     <div className="h-full overflow-y-auto p-1 space-y-6">
       
-      {/* Fix: Added missing 'customer' prop to PersonaHeader */}
-      <PersonaHeader customer={customer} completeness={completeness} />
+      <PersonaHeader completeness={completeness} />
 
       <AIQuickFill 
           onAnalyze={handleAIAnalyze} 

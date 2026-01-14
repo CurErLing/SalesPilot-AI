@@ -26,11 +26,12 @@ export const getHealthLabel = (health: string) => {
 
 export const getStanceColor = (stance: string) => {
     switch(stance) {
-        case 'Champion': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-        case 'Positive': return 'bg-green-50 text-green-600 border-green-200';
-        case 'Negative': return 'bg-red-50 text-red-600 border-red-200';
-        case 'Blocker': return 'bg-red-100 text-red-700 border-red-300';
-        default: return 'bg-slate-100 text-slate-600 border-slate-200';
+        case 'Champion': return 'border-emerald-500 bg-emerald-50 text-emerald-700';
+        case 'Positive': return 'border-green-400 bg-green-50 text-green-700';
+        case 'Neutral': return 'border-slate-300 bg-slate-50 text-slate-600';
+        case 'Negative': return 'border-orange-400 bg-orange-50 text-orange-700';
+        case 'Blocker': return 'border-red-500 bg-red-50 text-red-700';
+        default: return 'border-slate-200 bg-white text-slate-500';
     }
 };
 
@@ -41,6 +42,17 @@ export const getStanceLabel = (stance: string) => {
         case 'Neutral': return '😐 中立';
         case 'Negative': return '😟 态度消极';
         case 'Blocker': return '⛔ 反对者';
+        default: return stance;
+    }
+};
+
+export const getStanceShortLabel = (stance: string) => {
+    switch(stance) {
+        case 'Champion': return '关键';
+        case 'Positive': return '积极';
+        case 'Neutral': return '中立';
+        case 'Negative': return '消极';
+        case 'Blocker': return '反对';
         default: return stance;
     }
 };
