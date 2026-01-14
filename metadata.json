@@ -1,0 +1,7 @@
+{
+  "name": "SalesPilot AI",
+  "description": "AI 驱动的销售助手，用于客户画像构建、价值评估和战略跟进规划。",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

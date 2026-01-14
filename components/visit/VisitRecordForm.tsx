@@ -1,0 +1,324 @@
+
+import React, { useRef } from 'react';
+import { VisitRecord, Stakeholder } from '../../types';
+import { Clock, Mic, Trash2, Loader2, Image as ImageIcon, X, Plus, CheckSquare, Users, Target, ListChecks, HelpCircle, Sparkles, BrainCircuit, Check } from 'lucide-react';
+import { Button } from '../ui/Button';
+import { TranscriptEditor } from './TranscriptEditor';
+
+interface Props {
+    record: Partial<VisitRecord>;
+    onChange: (updated: Partial<VisitRecord>) => void;
+    onAudioUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onAnalyzeTranscript: () => void;
+    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onRemoveImage: (index: number) => void;
+    onRemoveAudio: () => void;
+    stakeholders: Stakeholder[];
+    isPlanned?: boolean; 
+    onGeneratePlan?: () => void; 
+    isGeneratingPlan?: boolean; 
+}
+
+export const VisitRecordForm: React.FC<Props> = ({
+    record,
+    onChange,
+    onAudioUpload,
+    onAnalyzeTranscript,
+    onImageUpload,
+    onRemoveImage,
+    onRemoveAudio,
+    stakeholders,
+    isPlanned = false,
+    onGeneratePlan,
+    isGeneratingPlan
+}) => {
+    const audioInputRef = useRef<HTMLInputElement>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const aiStatus = record.aiStatus || 'idle';
+
+    const toggleStakeholder = (stakeholderId: string) => {
+        const currentIds = record.stakeholderIds || [];
+        let newIds;
+        if (currentIds.includes(stakeholderId)) {
+            newIds = currentIds.filter(id => id !== stakeholderId);
+        } else {
+            newIds = [...currentIds, stakeholderId];
+        }
+        onChange({ ...record, stakeholderIds: newIds });
+    };
+
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-8 animate-in fade-in duration-300">
+            {/* Header: Logistics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">日期</label>
+                    <div className="relative">
+                        <Clock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                        <input 
+                            type="date" 
+                            className="w-full pl-10 p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
+                            value={record.date} 
+                            onChange={(e) => onChange({ ...record, date: e.target.value })} 
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">方式</label>
+                    <select 
+                        className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium bg-white" 
+                        value={record.type} 
+                        onChange={(e) => onChange({ ...record, type: e.target.value as any })}
+                    >
+                        <option value="Meeting">实地拜访 / 会议</option>
+                        <option value="Call">电话沟通</option>
+                        <option value="Email">邮件往来</option>
+                        <option value="Other">其他</option>
+                    </select>
+                </div>
+                {!isPlanned && (
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                            互动成效 / 态度
+                        </label>
+                        <select 
+                            className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium bg-white" 
+                            value={record.sentiment} 
+                            onChange={(e) => onChange({ ...record, sentiment: e.target.value as any })}
+                        >
+                            <option value="Neutral">😐 一般 (Neutral)</option>
+                            <option value="Positive">😊 推进顺利 (Positive)</option>
+                            <option value="Negative">😟 客户消极 (Negative)</option>
+                            <option value="Risk">⚠️ 存在风险 (Risk)</option>
+                        </select>
+                    </div>
+                )}
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">主题</label>
+                <input 
+                    type="text" 
+                    placeholder="例如：需求沟通会议、价格谈判" 
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg text-slate-800 placeholder:font-normal placeholder:text-slate-300" 
+                    value={record.title} 
+                    onChange={(e) => onChange({ ...record, title: e.target.value })} 
+                />
+            </div>
+
+            {/* Stakeholder Selector */}
+            <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-600" /> {isPlanned ? '拟邀参会人 (决策人)' : '实际参会人'}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                    {stakeholders && stakeholders.length > 0 ? (
+                        stakeholders.map(dm => {
+                            const isSelected = record.stakeholderIds?.includes(dm.id);
+                            return (
+                                <button
+                                    key={dm.id}
+                                    onClick={() => toggleStakeholder(dm.id)}
+                                    className={`
+                                        flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all border
+                                        ${isSelected 
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105' 
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+                                        }
+                                    `}
+                                >
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
+                                        {dm.name.charAt(0)}
+                                    </div>
+                                    {dm.name}
+                                    {isSelected && <CheckSquare className="w-3.5 h-3.5 ml-1" />}
+                                </button>
+                            )
+                        })
+                    ) : (
+                        <div className="text-sm text-slate-400 italic py-2">
+                            暂无决策人信息，请先在“全景画像”中添加。
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- PLAN MODE FIELDS --- */}
+            {isPlanned ? (
+                 <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                     <div className="bg-indigo-50/50 p-6 rounded-xl border border-indigo-100 space-y-4">
+                         <div className="flex items-center justify-between">
+                             <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wide flex items-center gap-2">
+                                 <Target className="w-4 h-4" /> 拜访目标
+                             </label>
+                             {onGeneratePlan && (
+                                 <Button 
+                                    size="sm" 
+                                    variant="gradient" 
+                                    icon={Sparkles}
+                                    onClick={onGeneratePlan} 
+                                    isLoading={isGeneratingPlan}
+                                    disabled={!record.visitGoal || !record.stakeholderIds || record.stakeholderIds.length === 0}
+                                    className="h-8 text-xs"
+                                 >
+                                     AI 生成策划案
+                                 </Button>
+                             )}
+                         </div>
+                         <input 
+                             className="w-full p-3 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
+                             placeholder="例如：确认预算金额，并推动技术选型" 
+                             value={record.visitGoal || ''} 
+                             onChange={(e) => onChange({ ...record, visitGoal: e.target.value })} 
+                             disabled={isGeneratingPlan}
+                         />
+                         <p className="text-[10px] text-indigo-400/80">提示：输入目标并选择参会人后，点击右侧 AI 按钮自动生成议程与提问。</p>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                 <ListChecks className="w-4 h-4" /> 会议议程
+                             </label>
+                             <textarea 
+                                 className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed" 
+                                 placeholder="1. 破冰与回顾...&#10;2. 演示产品...&#10;3. ..." 
+                                 value={record.agendaItems?.join('\n') || ''} 
+                                 onChange={(e) => onChange({ ...record, agendaItems: e.target.value.split('\n') })} 
+                             />
+                         </div>
+                         <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                 <HelpCircle className="w-4 h-4 text-amber-500" /> 黄金提问
+                             </label>
+                             <textarea 
+                                 className="w-full p-4 rounded-xl border border-amber-200 bg-amber-50/30 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed" 
+                                 placeholder="AI 将根据画像缺口(Gap)生成必问问题..." 
+                                 value={record.targetQuestions?.join('\n') || ''} 
+                                 onChange={(e) => onChange({ ...record, targetQuestions: e.target.value.split('\n') })} 
+                             />
+                         </div>
+                     </div>
+                 </div>
+            ) : (
+                /* --- COMPLETED MODE FIELDS --- */
+                <div className="space-y-8 animate-in slide-in-from-bottom-4">
+                    {/* Audio Upload / Transcript Review Area */}
+                    <div className="bg-slate-50 p-8 rounded-xl border border-dashed border-slate-300 text-center">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-4 flex items-center justify-center gap-2">
+                            <Mic className="w-4 h-4 text-indigo-600" /> 现场录音 & AI 分析
+                        </label>
+                        
+                        {record.audioUrl ? (
+                            <div className="w-full">
+                                {/* Editor Mode */}
+                                {aiStatus === 'reviewing_transcript' && (
+                                    <div className="w-full max-w-4xl mx-auto h-[600px] animate-in fade-in slide-in-from-bottom-2">
+                                        <TranscriptEditor 
+                                            audioUrl={record.audioUrl}
+                                            transcript={record.transcript || ''}
+                                            onChange={(text) => onChange({ ...record, transcript: text })}
+                                            onAnalyze={onAnalyzeTranscript}
+                                            stakeholders={stakeholders}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Analyzing State */}
+                                {aiStatus === 'analyzing_insights' && (
+                                    <div className="flex flex-col items-center justify-center gap-4 py-12">
+                                        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-slate-800">正在深度分析对话内容...</p>
+                                            <p className="text-xs text-slate-500 mt-1">提取关键行动项、客户情绪与潜在商机</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Completed State (Just show simple summary, full transcript in detail view) */}
+                                {aiStatus === 'completed' && (
+                                    <div className="flex flex-col items-center gap-4 py-6">
+                                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center animate-in zoom-in">
+                                            <Check className="w-8 h-8 text-emerald-600" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="font-bold text-slate-800">AI 分析已完成</p>
+                                            <Button variant="ghost" size="sm" onClick={onRemoveAudio} className="mt-2 text-red-500 hover:bg-red-50 hover:text-red-600">
+                                                <Trash2 className="w-4 h-4 mr-1" /> 删除录音重试
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div onClick={() => audioInputRef.current?.click()} className={`flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-100 rounded-lg p-10 ${aiStatus === 'transcribing' ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <input type="file" ref={audioInputRef} onChange={onAudioUpload} accept="audio/*" className="hidden" />
+                                {aiStatus === 'transcribing' ? (
+                                    <><Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" /><span className="text-sm font-medium text-indigo-600">正在转录语音 (生成时间轴)...</span></>
+                                ) : (
+                                    <>
+                                        <div className="bg-white p-4 rounded-full shadow-sm mb-3 text-indigo-600 border border-slate-100 group-hover:scale-110 transition-transform">
+                                            <Mic className="w-8 h-8" />
+                                        </div>
+                                        <span className="text-base font-bold text-slate-700">点击上传会议录音</span>
+                                        <span className="text-sm text-slate-400 mt-1">支持 MP3, M4A, WAV • 自动生成时间轴逐字稿</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Show Insights Fields only when Analysis is Done */}
+                    {(aiStatus === 'completed' || aiStatus === 'idle' || record.content) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+                            <div className="flex flex-col">
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                                    {record.transcript ? "AI 总结 / 核心发现" : "详细纪要"}
+                                </label>
+                                <textarea 
+                                    className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed text-slate-700 shadow-inner" 
+                                    placeholder="记录会议的核心讨论点..." 
+                                    value={record.content} 
+                                    onChange={(e) => onChange({ ...record, content: e.target.value })} 
+                                />
+                            </div>
+                            <div className="flex flex-col">
+                                <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                    <CheckSquare className="w-3.5 h-3.5" /> 下一步计划 (Action Items)
+                                </label>
+                                <textarea 
+                                    className="w-full p-4 rounded-xl border border-indigo-200 bg-indigo-50/30 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[200px] text-sm leading-relaxed text-slate-700 shadow-inner" 
+                                    placeholder="明确具体的行动项、负责人和截止日期..." 
+                                    value={record.nextSteps} 
+                                    onChange={(e) => onChange({ ...record, nextSteps: e.target.value })} 
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Image Uploader (Common) */}
+            <div className="pt-6 border-t border-slate-100">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-slate-400" /> 图片附件 / 现场照片
+                </label>
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                    {record.images?.map((img, idx) => (
+                        <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                            <img src={img} alt="attachment" className="w-full h-full object-cover" />
+                            <button onClick={() => onRemoveImage(idx)} className="absolute top-1 right-1 bg-white/90 hover:bg-red-50 text-slate-500 hover:text-red-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-sm">
+                                <X className="w-3 h-3" />
+                            </button>
+                        </div>
+                    ))}
+                    <div onClick={() => imageInputRef.current?.click()} className="aspect-square rounded-lg border border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-500 cursor-pointer transition-colors bg-slate-50">
+                        <input type="file" ref={imageInputRef} onChange={onImageUpload} accept="image/*" multiple className="hidden" />
+                        <Plus className="w-6 h-6 mb-1" />
+                        <span className="text-[10px] font-medium">上传</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
