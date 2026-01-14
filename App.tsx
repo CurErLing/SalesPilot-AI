@@ -18,10 +18,8 @@ const App: React.FC = () => {
   const [appMode, setAppMode] = useState<'PIPELINE' | 'WORKSPACE'>('PIPELINE');
   const [view, setView] = useState<ViewState>(ViewState.PROJECT_COCKPIT);
   
-  // State to hold the research query when transitioning from Persona to Research view
   const [initialResearchQuery, setInitialResearchQuery] = useState<string>('');
 
-  // Initialize from LocalStorage or Fallback to Mocks
   const [customers, setCustomers] = useState<Customer[]>(() => {
     try {
         const saved = localStorage.getItem('salespilot_customers');
@@ -37,7 +35,6 @@ const App: React.FC = () => {
   
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-  // Persistence Effect
   useEffect(() => {
     localStorage.setItem('salespilot_customers', JSON.stringify(customers));
   }, [customers]);
@@ -51,14 +48,13 @@ const App: React.FC = () => {
   const handleSelectCustomer = (id: string) => {
     setSelectedCustomerId(id);
     setAppMode('WORKSPACE');
-    setView(ViewState.PROJECT_COCKPIT); // Default to cockpit when selecting a customer
+    setView(ViewState.PROJECT_COCKPIT);
   };
 
   const handleAddCustomer = (newCustomer: Customer) => {
     setCustomers(prev => [newCustomer, ...prev]);
   };
 
-  // --- Cross-Component Actions ---
   const handleCompetitorResearch = (competitors: string[]) => {
       const query = `Analyze the competitive landscape between ${activeCustomer.name} and ${competitors.join(', ')}. Compare their market share, recent strategic moves, and strengths/weaknesses.`;
       setInitialResearchQuery(query);
@@ -87,7 +83,6 @@ const App: React.FC = () => {
         customerName={activeCustomer?.name || 'Loading...'}
       />
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white relative">
         
         {activeCustomer && (
@@ -98,7 +93,6 @@ const App: React.FC = () => {
                 onBack={() => setAppMode('PIPELINE')}
             />
 
-            {/* Content Area */}
             <div className="flex-1 overflow-hidden bg-slate-50/50 p-6">
                 <div className="max-w-7xl mx-auto h-full">
                     {view === ViewState.PROJECT_COCKPIT && (
@@ -109,6 +103,7 @@ const App: React.FC = () => {
                             customer={activeCustomer} 
                             onUpdate={handleUpdateCustomer} 
                             onResearchCompetitors={handleCompetitorResearch}
+                            onChangeView={setView}
                         />
                     )}
                     {view === ViewState.VISIT_RECORDS && (
@@ -140,7 +135,6 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* Global Chat / Copilot Widget */}
             <GlobalChatWidget customer={activeCustomer} />
           </>
         )}

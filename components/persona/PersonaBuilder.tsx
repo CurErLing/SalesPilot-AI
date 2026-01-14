@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Customer, PersonaData, Stakeholder, Relationship } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { Customer, PersonaData, Stakeholder, Relationship, ViewState } from '../../types';
 import { extractPersonaData } from '../../services/geminiService';
 import { mergePersonaWithMetadata } from '../../utils/personaHelper';
 import { StakeholderProfileModal } from '../StakeholderProfileModal';
@@ -13,20 +13,22 @@ import { StakeholdersCard } from './StakeholdersCard';
 import { NeedsCard } from './NeedsCard';
 import { StakeholderEditModal } from './StakeholderEditModal';
 import { AIQuickFill } from './AIQuickFill';
+import { PersonaGapTracer } from './PersonaGapTracer';
 
 interface Props {
   customer: Customer;
   onUpdate: (updatedCustomer: Customer) => void;
   onResearchCompetitors?: (competitors: string[]) => void;
+  onChangeView?: (view: ViewState, params?: any) => void;
 }
 
-export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearchCompetitors }) => {
+export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearchCompetitors, onChangeView }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const [editingStakeholder, setEditingStakeholder] = useState<Partial<Stakeholder> | null>(null);
   const [viewingStakeholder, setViewingStakeholder] = useState<Stakeholder | null>(null);
 
-  const completeness = React.useMemo(() => {
+  const completeness = useMemo(() => {
     const fields = [
       customer.persona.industry,
       customer.persona.companySize,
@@ -109,7 +111,6 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
   return (
     <div className="h-full flex flex-col overflow-y-auto bg-slate-50/50 custom-scrollbar">
       
-      {/* Top Banner Area */}
       <div className="p-6 pb-0 shrink-0">
           <PersonaHeader 
               customer={customer}
@@ -117,45 +118,42 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
           />
       </div>
 
-      {/* Main Workspace */}
-      <div className="p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 pb-20">
+      <div className="p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 pb-20 items-start">
           
-          {/* 左侧：核心上下文与竞争 (静态、事实类) */}
-          <div className="xl:col-span-5 flex flex-col gap-6">
-              <ProjectContextCard 
-                  projectName={customer.projectName}
-                  projectBackground={customer.persona.projectBackground}
-                  status={customer.status}
-                  companyName={customer.name}
-                  industry={customer.persona.industry} 
-                  companySize={customer.persona.companySize}
-                  scenario={customer.persona.scenario}
-                  budget={customer.persona.budget}
-                  projectTimeline={customer.persona.projectTimeline}
-                  metadata={customer.persona._metadata}
-                  onChange={handleFieldChange}
-                  onStatusChange={handleStatusChange}
-              />
-
-              <CompetitiveLandscapeCard 
-                  competitors={customer.persona.competitors}
-                  onChange={(field, val) => handleFieldChange(field as any, val, true)}
-                  customer={customer}
-                  onAnalyze={() => {
-                      if (onResearchCompetitors && customer.persona.competitors) {
-                          onResearchCompetitors(customer.persona.competitors);
-                      }
-                  }}
-              />
-          </div>
-
-          {/* 右侧：动态情报与权力地图 (高频互动类) */}
-          <div className="xl:col-span-7 flex flex-col gap-6">
-              {/* Intelligence Input: 放在右侧顶部，作为主要的“喂数据”入口 */}
+          {/* 左侧区域：画像主体 (8 Cols on XL) */}
+          <div className="xl:col-span-8 space-y-6">
               <AIQuickFill 
                   onAnalyze={handleAIAnalyze}
                   isAnalyzing={isAnalyzing}
               />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <ProjectContextCard 
+                      projectName={customer.projectName}
+                      projectBackground={customer.persona.projectBackground}
+                      status={customer.status}
+                      companyName={customer.name}
+                      industry={customer.persona.industry} 
+                      companySize={customer.persona.companySize}
+                      scenario={customer.persona.scenario}
+                      budget={customer.persona.budget}
+                      projectTimeline={customer.persona.projectTimeline}
+                      metadata={customer.persona._metadata}
+                      onChange={handleFieldChange}
+                      onStatusChange={handleStatusChange}
+                  />
+
+                  <CompetitiveLandscapeCard 
+                      competitors={customer.persona.competitors}
+                      onChange={(field, val) => handleFieldChange(field as any, val, true)}
+                      customer={customer}
+                      onAnalyze={() => {
+                          if (onResearchCompetitors && customer.persona.competitors) {
+                              onResearchCompetitors(customer.persona.competitors);
+                          }
+                      }}
+                  />
+              </div>
 
               <div className="h-[520px]">
                   <StakeholdersCard 
@@ -167,13 +165,35 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
                   />
               </div>
 
-              <div>
-                  <NeedsCard 
-                      keyPainPoints={customer.persona.keyPainPoints}
-                      currentSolution={customer.persona.currentSolution}
-                      customerExpectations={customer.persona.customerExpectations}
-                      onChange={(field, val) => handleFieldChange(field as any, val, true)}
-                  />
+              <NeedsCard 
+                  keyPainPoints={customer.persona.keyPainPoints}
+                  currentSolution={customer.persona.currentSolution}
+                  customerExpectations={customer.persona.customerExpectations}
+                  onChange={(field, val) => handleFieldChange(field as any, val, true)}
+              />
+          </div>
+
+          {/* 右侧区域：缺口诊断与行动 (4 Cols on XL) */}
+          <div className="xl:col-span-4 sticky top-0 space-y-6">
+              <PersonaGapTracer 
+                  customer={customer}
+                  onChangeView={onChangeView}
+              />
+              
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">画像维护守则</h3>
+                  <ul className="space-y-3">
+                      {[
+                          { text: "所有 AI 提取的信息必须经过销售人工勾选确认。", color: "text-amber-600" },
+                          { text: "项目预算变更必须在 24 小时内更新画像。", color: "text-slate-600" },
+                          { text: "关键决策人立场转变需立即运行“陪练模式”。", color: "text-slate-600" }
+                      ].map((rule, i) => (
+                          <li key={i} className={`text-xs leading-relaxed flex gap-2 ${rule.color}`}>
+                              <span className="shrink-0">•</span>
+                              {rule.text}
+                          </li>
+                      ))}
+                  </ul>
               </div>
           </div>
       </div>
