@@ -23,13 +23,9 @@ interface Props {
 export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearchCompetitors }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Modal State
   const [editingStakeholder, setEditingStakeholder] = useState<Partial<Stakeholder> | null>(null);
   const [viewingStakeholder, setViewingStakeholder] = useState<Stakeholder | null>(null);
 
-  // --- Logic ---
-
-  // Calculate Profile Completeness Score
   const completeness = React.useMemo(() => {
     const fields = [
       customer.persona.industry,
@@ -49,7 +45,7 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
     setIsAnalyzing(true);
     try {
       const extracted = await extractPersonaData(rawInput, customer.persona);
-      const finalPersona = mergePersonaWithMetadata(customer.persona, extracted, "AI Quick Fill");
+      const finalPersona = mergePersonaWithMetadata(customer.persona, extracted, "AI 情报碎纸机", false);
       
       onUpdate({
         ...customer,
@@ -63,14 +59,26 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
     }
   };
 
-  const handleFieldChange = (field: keyof PersonaData | 'projectName', value: any) => {
+  const handleFieldChange = (field: keyof PersonaData | 'projectName', value: any, isVerified: boolean = false) => {
     if (field === 'projectName') {
         onUpdate({ ...customer, projectName: value });
         return;
     }
+    
+    const newMetadata = { ...(customer.persona._metadata || {}) };
+    newMetadata[field as string] = {
+        source: isVerified ? "手动核实" : "手动输入",
+        timestamp: Date.now(),
+        isVerified: isVerified
+    };
+
     onUpdate({
       ...customer,
-      persona: { ...customer.persona, [field]: value }
+      persona: { 
+          ...customer.persona, 
+          [field]: value,
+          _metadata: newMetadata
+      }
     });
   };
 
@@ -80,106 +88,76 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
 
   const handleSaveStakeholder = (data: Partial<Stakeholder>) => {
       if (!data.name) return;
-      
-      const newStakeholder = {
-          ...data,
-          id: data.id || Date.now().toString(),
-          role: data.role || 'Unknown',
-          stance: data.stance || 'Neutral'
-      } as Stakeholder;
-
+      const newStakeholder = { ...data, id: data.id || Date.now().toString(), role: data.role || 'Unknown', stance: data.stance || 'Neutral' } as Stakeholder;
       const currentList = customer.persona.decisionMakers || [];
       const index = currentList.findIndex(dm => dm.id === newStakeholder.id);
-      
-      let newList;
-      if (index >= 0) {
-          newList = [...currentList];
-          newList[index] = newStakeholder;
-      } else {
-          newList = [...currentList, newStakeholder];
-      }
-
-      handleFieldChange('decisionMakers', newList);
+      const newList = index >= 0 ? [...currentList] : [...currentList, newStakeholder];
+      if (index >= 0) newList[index] = newStakeholder;
+      onUpdate({ ...customer, persona: { ...customer.persona, decisionMakers: newList } });
       setEditingStakeholder(null);
   };
 
   const handleDeleteStakeholder = (id: string) => {
-      const newList = customer.persona.decisionMakers.filter(dm => dm.id !== id);
-      handleFieldChange('decisionMakers', newList);
+      onUpdate({ ...customer, persona: { ...customer.persona, decisionMakers: customer.persona.decisionMakers.filter(dm => dm.id !== id) } });
       setEditingStakeholder(null);
   };
 
   const handleStakeholderDataChange = (updates: { decisionMakers?: Stakeholder[]; relationships?: Relationship[] }) => {
-      const newPersona = { ...customer.persona };
-      if (updates.decisionMakers) newPersona.decisionMakers = updates.decisionMakers;
-      if (updates.relationships) newPersona.relationships = updates.relationships;
-      
-      onUpdate({ ...customer, persona: newPersona });
+      onUpdate({ ...customer, persona: { ...customer.persona, ...updates } });
   };
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto bg-slate-50/50 p-2 custom-scrollbar">
+    <div className="h-full flex flex-col overflow-y-auto bg-slate-50/50 custom-scrollbar">
       
-      {/* 1. Header Section */}
-      <div className="mb-6 shrink-0">
+      {/* Top Banner Area */}
+      <div className="p-6 pb-0 shrink-0">
           <PersonaHeader 
+              customer={customer}
               completeness={completeness} 
-              hasRisk={customer.visits.some(v => v.sentiment === 'Risk')}
           />
       </div>
 
-      {/* 2. Main Dashboard Grid (The "Dossier" Layout) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 pb-10">
+      {/* Main Workspace */}
+      <div className="p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 pb-20">
           
-          {/* LEFT COLUMN: The "Hard" Facts (Project, Budget, Competition) - 5 Cols */}
+          {/* 左侧：核心上下文与竞争 (静态、事实类) */}
           <div className="xl:col-span-5 flex flex-col gap-6">
-              
-              {/* Project Context (The Core) */}
-              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-                  <ProjectContextCard 
-                      projectName={customer.projectName}
-                      projectBackground={customer.persona.projectBackground}
-                      status={customer.status}
-                      companyName={customer.name}
-                      industry={customer.persona.industry} 
-                      companySize={customer.persona.companySize}
-                      scenario={customer.persona.scenario}
-                      budget={customer.persona.budget}
-                      projectTimeline={customer.persona.projectTimeline}
-                      metadata={customer.persona._metadata}
-                      onChange={handleFieldChange}
-                      onStatusChange={handleStatusChange}
-                  />
-              </div>
+              <ProjectContextCard 
+                  projectName={customer.projectName}
+                  projectBackground={customer.persona.projectBackground}
+                  status={customer.status}
+                  companyName={customer.name}
+                  industry={customer.persona.industry} 
+                  companySize={customer.persona.companySize}
+                  scenario={customer.persona.scenario}
+                  budget={customer.persona.budget}
+                  projectTimeline={customer.persona.projectTimeline}
+                  metadata={customer.persona._metadata}
+                  onChange={handleFieldChange}
+                  onStatusChange={handleStatusChange}
+              />
 
-              {/* Competitive Landscape */}
-              <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
-                  <CompetitiveLandscapeCard 
-                      competitors={customer.persona.competitors}
-                      onChange={handleFieldChange}
-                      customer={customer}
-                      onAnalyze={() => {
-                          if (onResearchCompetitors && customer.persona.competitors) {
-                              onResearchCompetitors(customer.persona.competitors);
-                          }
-                      }}
-                  />
-              </div>
+              <CompetitiveLandscapeCard 
+                  competitors={customer.persona.competitors}
+                  onChange={(field, val) => handleFieldChange(field as any, val, true)}
+                  customer={customer}
+                  onAnalyze={() => {
+                      if (onResearchCompetitors && customer.persona.competitors) {
+                          onResearchCompetitors(customer.persona.competitors);
+                      }
+                  }}
+              />
           </div>
 
-          {/* RIGHT COLUMN: The "Soft" Intelligence (Input, People, Pain) - 7 Cols */}
+          {/* 右侧：动态情报与权力地图 (高频互动类) */}
           <div className="xl:col-span-7 flex flex-col gap-6">
-              
-              {/* AI Intelligence Input (Top for accessibility) */}
-              <div className="h-auto animate-in fade-in slide-in-from-right-2 duration-300">
-                  <AIQuickFill 
-                      onAnalyze={handleAIAnalyze}
-                      isAnalyzing={isAnalyzing}
-                  />
-              </div>
+              {/* Intelligence Input: 放在右侧顶部，作为主要的“喂数据”入口 */}
+              <AIQuickFill 
+                  onAnalyze={handleAIAnalyze}
+                  isAnalyzing={isAnalyzing}
+              />
 
-              {/* Stakeholder Map (Needs width for chart) */}
-              <div className="h-[500px] animate-in fade-in slide-in-from-right-2 duration-300 delay-75">
+              <div className="h-[520px]">
                   <StakeholdersCard 
                       stakeholders={customer.persona.decisionMakers}
                       relationships={customer.persona.relationships}
@@ -189,13 +167,12 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
                   />
               </div>
 
-              {/* Needs & Pain Points */}
-              <div className="h-[400px] animate-in fade-in slide-in-from-right-2 duration-300 delay-150">
+              <div>
                   <NeedsCard 
                       keyPainPoints={customer.persona.keyPainPoints}
                       currentSolution={customer.persona.currentSolution}
                       customerExpectations={customer.persona.customerExpectations}
-                      onChange={handleFieldChange}
+                      onChange={(field, val) => handleFieldChange(field as any, val, true)}
                   />
               </div>
           </div>
@@ -209,7 +186,6 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
          customer={customer}
          onEdit={(stakeholder) => setEditingStakeholder(stakeholder)}
       />
-
       <StakeholderEditModal
         isOpen={!!editingStakeholder}
         onClose={() => setEditingStakeholder(null)}
@@ -218,7 +194,6 @@ export const PersonaBuilder: React.FC<Props> = ({ customer, onUpdate, onResearch
         onDelete={handleDeleteStakeholder}
         allStakeholders={customer.persona.decisionMakers}
       />
-
     </div>
   );
 };

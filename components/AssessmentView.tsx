@@ -162,8 +162,8 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
           </div>
 
           {/* Right: History Trend Chart */}
-          <div className="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col">
-              <div className="flex items-center justify-between mb-2">
+          <div className="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col min-h-[300px]">
+              <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                       <History className="w-4 h-4 text-indigo-500" /> 
                       评分历史演变
@@ -173,7 +173,7 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
                   )}
               </div>
               
-              <div className="flex-1 w-full min-h-[180px]">
+              <div className="flex-1 w-full relative min-h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={history.length > 0 ? history : [{date: new Date().toISOString().split('T')[0], score: data.score}]}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -215,7 +215,7 @@ const AssessmentView: React.FC<Props> = ({ customer, onUpdate }) => {
       </div>
 
       {/* Grid: Gap Analysis */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-10">
          {data.categories.map((cat, idx) => (
              <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:border-indigo-300 transition-colors">
                  {/* Header */}

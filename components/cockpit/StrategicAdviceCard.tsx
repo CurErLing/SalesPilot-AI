@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Target, ArrowRight, Zap, Lightbulb } from 'lucide-react';
+import { ArrowRight, Zap, Lightbulb } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { AssessmentResult, ViewState } from '../../types';
 
@@ -40,26 +40,47 @@ export const StrategicAdviceCard: React.FC<Props> = ({ assessment, onChangeView 
         }
     }
 
-    const colorMap = {
-        indigo: 'bg-indigo-600 shadow-indigo-200',
-        red: 'bg-red-600 shadow-red-200',
-        emerald: 'bg-emerald-600 shadow-emerald-200'
+    // Static style map to avoid dynamic class issues in Tailwind
+    const styles = {
+        indigo: {
+            bgEffect: 'bg-indigo-50',
+            iconBg: 'bg-indigo-50',
+            iconText: 'text-indigo-600',
+            headerText: 'text-indigo-900',
+            button: '!bg-indigo-600 hover:!bg-indigo-700 shadow-indigo-200'
+        },
+        red: {
+            bgEffect: 'bg-red-50',
+            iconBg: 'bg-red-50',
+            iconText: 'text-red-600',
+            headerText: 'text-red-900',
+            button: '!bg-red-600 hover:!bg-red-700 shadow-red-200'
+        },
+        emerald: {
+            bgEffect: 'bg-emerald-50',
+            iconBg: 'bg-emerald-50',
+            iconText: 'text-emerald-600',
+            headerText: 'text-emerald-900',
+            button: '!bg-emerald-600 hover:!bg-emerald-700 shadow-emerald-200'
+        }
     };
 
-    return (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg shadow-slate-100 relative overflow-hidden group">
-            {/* Background Effect */}
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-${themeColor}-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 transition-colors duration-500`}></div>
+    const currentStyle = styles[themeColor as keyof typeof styles];
 
-            <div className="relative z-10">
+    return (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg shadow-slate-100 relative overflow-hidden group h-full flex flex-col">
+            {/* Background Effect */}
+            <div className={`absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4 transition-colors duration-500 pointer-events-none z-0 ${currentStyle.bgEffect}`}></div>
+
+            <div className="relative z-10 flex flex-col flex-1">
                 <div className="flex items-center gap-2 mb-4">
-                    <div className={`p-2 rounded-lg bg-${themeColor}-50 text-${themeColor}-600`}>
+                    <div className={`p-2 rounded-lg ${currentStyle.iconBg} ${currentStyle.iconText}`}>
                         <Zap className="w-5 h-5" />
                     </div>
-                    <h3 className={`font-bold text-${themeColor}-900 tracking-tight`}>AI 战术指引</h3>
+                    <h3 className={`font-bold tracking-tight ${currentStyle.headerText}`}>AI 战术指引</h3>
                 </div>
 
-                <h2 className="text-xl font-extrabold text-slate-800 mb-2 leading-tight">
+                <h2 className="text-xl font-extrabold text-slate-800 mb-3 leading-tight">
                     {actionTitle}
                 </h2>
                 
@@ -67,21 +88,28 @@ export const StrategicAdviceCard: React.FC<Props> = ({ assessment, onChangeView 
                     {actionDesc}
                 </p>
 
-                <div className="flex items-center justify-between">
-                    {assessment?.categories[0]?.coaching_tip && (
-                        <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 max-w-[60%]">
-                            <Lightbulb className="w-3 h-3 text-amber-500 shrink-0" />
-                            <span className="truncate">Tip: {assessment.categories[0].coaching_tip}</span>
-                        </div>
-                    )}
+                {/* Footer Action Area - Use mt-auto to push to bottom if container has height */}
+                <div className="mt-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                        {assessment?.categories[0]?.coaching_tip && (
+                            <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100 w-full sm:w-fit">
+                                <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="break-words line-clamp-2 leading-relaxed">
+                                    Tip: {assessment.categories[0].coaching_tip}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                     
-                    <Button 
-                        onClick={() => onChangeView(viewTarget)}
-                        className={`${colorMap[themeColor as keyof typeof colorMap]} text-white border-transparent`}
-                        icon={ArrowRight}
-                    >
-                        {buttonLabel}
-                    </Button>
+                    <div className="flex-shrink-0 w-full sm:w-auto">
+                        <Button 
+                            onClick={() => onChangeView(viewTarget)}
+                            className={`w-full sm:w-auto ${currentStyle.button} text-white border-transparent justify-center`}
+                            icon={ArrowRight}
+                        >
+                            {buttonLabel}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

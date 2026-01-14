@@ -20,10 +20,9 @@ export interface Stakeholder {
   stance: 'Champion' | 'Positive' | 'Neutral' | 'Negative' | 'Blocker';
   contact?: string;
   notes?: string;
-  reportsTo?: string; // ID of the manager
+  reportsTo?: string; 
 }
 
-// New: Political Relationships
 export interface Relationship {
   id: string;
   sourceId: string;
@@ -32,43 +31,39 @@ export interface Relationship {
   note?: string;
 }
 
-// New Interface for structured Pain Points
 export interface PainPoint {
   id: string;
   description: string;
-  createdAt: string; // ISO Date String YYYY-MM-DD
-  source?: string;   // e.g. "Meeting", "Manual"
+  createdAt: string; 
+  source?: string;   
   isSolved?: boolean;
 }
 
 export interface FieldMetadata {
   source: string;
   timestamp: number;
+  isVerified: boolean; // 新增：标记是否经过人工确认
+  previousValue?: string; // 新增：保留旧值以便回滚
 }
 
 export interface PersonaData {
-  // Customer Domain
   industry: string;
   companySize: string;
-  scenario?: string; // NEW: 业务场景
+  scenario?: string; 
 
-  // Project Domain
-  projectBackground?: string; // NEW: 项目背景与核心需求
-  keyPainPoints: PainPoint[]; // CHANGED: From string[] to PainPoint[]
-  customerExpectations?: string; // NEW: 客户预期
+  projectBackground?: string; 
+  keyPainPoints: PainPoint[]; 
+  customerExpectations?: string; 
   budget: string;
   projectTimeline: string;
   decisionMakers: Stakeholder[];
-  relationships?: Relationship[]; // NEW: Political Map
+  relationships?: Relationship[]; 
 
-  // Product Domain / Competitive Landscape
   currentSolution: string;
   competitors: string[];
   
-  // Strategy
-  painPointPitches?: Record<string, string>; // Key is PainPoint.description
+  painPointPitches?: Record<string, string>; 
 
-  // Metadata for lineage
   _metadata?: Record<string, FieldMetadata>;
 }
 
@@ -76,16 +71,12 @@ export interface VisitRecord {
   id: string;
   date: string;
   type: 'Meeting' | 'Call' | 'Email' | 'Other';
-  status: 'Planned' | 'Completed'; // New Field
+  status: 'Planned' | 'Completed'; 
   title: string;
-  
-  // Planning Fields (Pre-meeting)
   visitGoal?: string; 
   agendaItems?: string[];
-  targetQuestions?: string[]; // AI recommended questions to close gaps
+  targetQuestions?: string[]; 
   requiredMaterials?: string[];
-
-  // Execution Fields (Post-meeting)
   content: string; 
   nextSteps?: string;
   sentiment?: 'Positive' | 'Neutral' | 'Negative' | 'Risk';
@@ -94,8 +85,6 @@ export interface VisitRecord {
   stakeholderIds?: string[];
   audioUrl?: string;
   images?: string[];
-
-  // AI Processing State Persistence
   aiStatus?: 'idle' | 'transcribing' | 'reviewing_transcript' | 'analyzing_insights' | 'completed';
 }
 
@@ -126,7 +115,7 @@ export interface AssessmentHistoryItem {
   date: string;
   score: number;
   deal_health: 'Healthy' | 'At Risk' | 'Critical';
-  main_gap?: string; // First gap found, to explain why score is low
+  main_gap?: string; 
 }
 
 export interface Customer {
@@ -139,7 +128,7 @@ export interface Customer {
   persona: PersonaData;
   assessmentScore?: number;
   assessmentResult?: AssessmentResult; 
-  assessmentHistory?: AssessmentHistoryItem[]; // NEW: History
+  assessmentHistory?: AssessmentHistoryItem[]; 
   notes: string;
   visits: VisitRecord[];
   researchNotes: ResearchNote[];

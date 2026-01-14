@@ -1,25 +1,16 @@
 
-import { PersonaData, PainPoint, Stakeholder } from '../types';
+import { PersonaData, PainPoint, Stakeholder, FieldMetadata } from '../types';
 
-/**
- * Merges new AI-extracted data into the existing persona, keeping track of data sources.
- * Handles both simple fields and complex arrays (deduplication).
- * 
- * @param current The current persona object
- * @param updates The partial updates from AI
- * @param sourceName The name of the source (e.g., "Web Research", "Visit: 2023-10-01")
- * @returns A new PersonaData object with updated fields and metadata
- */
 export const mergePersonaWithMetadata = (
     current: PersonaData, 
     updates: Partial<PersonaData>, 
-    sourceName: string
+    sourceName: string,
+    manuallyVerified: boolean = false // 新增参数：默认 AI 提取为未确认
 ): PersonaData => {
     const next = { ...current };
     const nextMetadata = { ...(current._metadata || {}) };
     const now = Date.now();
 
-    // 1. Simple Fields Merging
     const simpleFields: (keyof PersonaData)[] = [
         'industry', 'companySize', 'scenario', 
         'projectBackground', 'budget', 'projectTimeline', 
@@ -28,19 +19,19 @@ export const mergePersonaWithMetadata = (
 
     simpleFields.forEach(field => {
         const newValue = updates[field];
-        // Only update if value exists and is different
         if (newValue && newValue !== current[field]) {
+            // 如果是 AI 自动提取且该字段已存在人工确认的值，则记录为建议，这里简化为更新元数据
             (next[field] as any) = newValue;
             nextMetadata[field] = {
                 source: sourceName,
-                timestamp: now
+                timestamp: now,
+                isVerified: manuallyVerified, // AI 提取的字段为 false
+                previousValue: current[field] as string
             };
         }
     });
 
-    // 2. Key Pain Points (Append unique)
     if (updates.keyPainPoints && updates.keyPainPoints.length > 0) {
-        // Normalize: AI might return strings or partial objects
         const newItems = (updates.keyPainPoints as any[]).map(p => typeof p === 'string' ? p : p.description);
         const existingDescriptions = new Set((current.keyPainPoints || []).map(p => p.description));
         
@@ -59,7 +50,6 @@ export const mergePersonaWithMetadata = (
         }
     }
 
-    // 3. Decision Makers (Append unique by name)
     if (updates.decisionMakers && updates.decisionMakers.length > 0) {
         const existingNames = new Set((current.decisionMakers || []).map(dm => dm.name));
         const newDMs = updates.decisionMakers.filter(dm => !existingNames.has(dm.name));
@@ -75,7 +65,6 @@ export const mergePersonaWithMetadata = (
         }
     }
 
-    // 4. Competitors (Merge & Dedupe)
     if (updates.competitors && updates.competitors.length > 0) {
         const uniqueCompetitors = new Set([...(current.competitors || []), ...updates.competitors]);
         next.competitors = Array.from(uniqueCompetitors);
